@@ -4,7 +4,6 @@ class Terminal {
             if (!opts.parentId) throw "Missing options";
 
             this.xTerm = require("xterm").Terminal;
-            const {AttachAddon} = require("xterm-addon-attach");
             const {FitAddon} = require("xterm-addon-fit");
             const {LigaturesAddon} = require("xterm-addon-ligatures");
             const {WebglAddon} = require("xterm-addon-webgl");
@@ -150,8 +149,38 @@ class Terminal {
             this.term.focus();
 
             this.Ipc.send("terminal_channel-"+this.port, "Renderer startup");
-            this.Ipc.on("terminal_channel-"+this.port, (e, ...args) => {
+            this._ipcListener = (e, ...args) => {
                 switch(args[0]) {
+                    case "Output":
+                        this.term.write(args[1]);
+
+                        let d = Date.now();
+
+                        if (d - this.lastSoundFX > 30) {
+                            if(window.passwordMode == "false")
+                                window.audioManager.stdout.play();
+                            this.lastSoundFX = d;
+                        }
+                        if (d - this.lastRefit > 10000) {
+                            this.fit();
+                        }
+
+                        // See #397
+                        if (!window.settings.experimentalGlobeFeatures) return;
+                        let ips = args[1].match(/((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/g);
+                        if (ips !== null && ips.length >= 1) {
+                            ips = ips.filter((val, index, self) => { return self.indexOf(val) === index; });
+                            ips.forEach(ip => {
+                                window.mods.globe.addTemporaryConnectedMarker(ip);
+                            });
+                        }
+                        break;
+                    case "Exit":
+                        this.Ipc.removeListener("terminal_channel-"+this.port, this._ipcListener);
+                        if (this.onclose) {
+                            this.onclose();
+                        }
+                        break;
                     case "New cwd":
                         this.cwd = args[1];
                         this.oncwdchange(this.cwd);
@@ -168,50 +197,24 @@ class Terminal {
                     default:
                         return;
                 }
-            });
+            };
+            this.Ipc.on("terminal_channel-"+this.port, this._ipcListener);
             this.resendCWD = () => {
                 this.oncwdchange(this.cwd || null);
             };
 
-            let sockHost = opts.host || "127.0.0.1";
-            let sockPort = this.port;
-
-            this.socket = new WebSocket("ws://"+sockHost+":"+sockPort);
-            this.socket.onopen = () => {
-                let attachAddon = new AttachAddon(this.socket);
-                this.term.loadAddon(attachAddon);
-                this.fit();
-            };
-            this.socket.onerror = e => {throw JSON.stringify(e)};
-            this.socket.onclose = e => {
-                if (this.onclose) {
-                    this.onclose(e);
+            this.term.onData(data => {
+                this.Ipc.send("terminal_channel-"+this.port, "Data", data);
+            });
+            this.term.onBinary(data => {
+                let buffer = new Uint8Array(data.length);
+                for (let i = 0; i < data.length; i++) {
+                    buffer[i] = data.charCodeAt(i) & 255;
                 }
-            };
+                this.Ipc.send("terminal_channel-"+this.port, "Binary", buffer);
+            });
 
             this.lastSoundFX = Date.now();
-            this.socket.addEventListener("message", e => {
-                let d = Date.now();
-
-                if (d - this.lastSoundFX > 30) {
-                    if(window.passwordMode == "false")
-                        window.audioManager.stdout.play();
-                    this.lastSoundFX = d;
-                }
-                if (d - this.lastRefit > 10000) {
-                    this.fit();
-                }
-
-                // See #397
-                if (!window.settings.experimentalGlobeFeatures) return;
-                let ips = e.data.match(/((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/g);
-                if (ips !== null && ips.length >= 1) {
-                    ips = ips.filter((val, index, self) => { return self.indexOf(val) === index; });
-                    ips.forEach(ip => {
-                        window.mods.globe.addTemporaryConnectedMarker(ip);
-                    });
-                }
-            });
 
             let parent = document.getElementById(opts.parentId);
             parent.addEventListener("wheel", e => {
@@ -278,11 +281,11 @@ class Terminal {
             };
 
             this.write = cmd => {
-                this.socket.send(cmd);
+                this.Ipc.send("terminal_channel-"+this.port, "Data", cmd);
             };
 
             this.writelr = cmd => {
-                this.socket.send(cmd+"\r");
+                this.Ipc.send("terminal_channel-"+this.port, "Data", cmd+"\r");
             };
 
             this.clipboard = {
@@ -299,10 +302,11 @@ class Terminal {
                 didCopy: false
             };
 
+            this.fit();
+
         } else if (opts.role === "server") {
 
             this.Pty = require("node-pty");
-            this.Websocket = require("ws").Server;
             this.Ipc = require("electron").ipcMain;
 
             this.renderer = null;
@@ -369,7 +373,7 @@ class Terminal {
                     this._getTtyCWD(this.tty).then(cwd => {
                         if (this.tty._cwd === cwd) return;
                         this.tty._cwd = cwd;
-                        if (this.renderer) {
+                        if (this.renderer && !this.renderer.isDestroyed()) {
                             this.renderer.send("terminal_channel-"+this.port, "New cwd", cwd);
                         }
                     }).catch(e => {
@@ -390,7 +394,7 @@ class Terminal {
                     this._getTtyProcess(this.tty).then(process => {
                         if (this.tty._process === process) return;
                         this.tty._process = process;
-                        if (this.renderer) {
+                        if (this.renderer && !this.renderer.isDestroyed()) {
                             this.renderer.send("terminal_channel-"+this.port, "New process", process);
                         }
                     }).catch(e => {
@@ -416,29 +420,100 @@ class Terminal {
 
             this.tty.onExit((code, signal) => {
                 this._closed = true;
+                this._sendToRenderer("Exit");
+                this._detach();
                 this.onclosed(code, signal);
             });
 
-            this.wss = new this.Websocket({
-                port: this.port,
-                clientTracking: true,
-                verifyClient: info => {
-                    if (this.wss.clients.length >= 1) {
-                        return false;
-                    } else {
-                        return true;
+            this._rendererId = null;
+            this._outputBuffer = [];
+            this._watchedSenders = new Map();
+
+            this._sendToRenderer = (...args) => {
+                if (this.renderer !== null && !this.renderer.isDestroyed()) {
+                    this.renderer.send("terminal_channel-"+this.port, ...args);
+                }
+            };
+
+            this._disconnect = id => {
+                if (this.renderer === null || this._rendererId !== id) return;
+                this.renderer = null;
+                this._rendererId = null;
+                this.ondisconnected();
+            };
+
+            this._watchSender = sender => {
+                let id = sender.id;
+                if (this._watchedSenders.has(id)) return;
+                let listeners = {
+                    "did-start-navigation": (e, url, isInPlace, isMainFrame) => {
+                        if (isMainFrame && !isInPlace && url === sender.getURL()) {
+                            this._disconnect(id);
+                        }
+                    },
+                    "render-process-gone": () => {
+                        this._disconnect(id);
+                    },
+                    "destroyed": () => {
+                        this._watchedSenders.delete(id);
+                        this._disconnect(id);
                     }
+                };
+                Object.keys(listeners).forEach(event => {
+                    sender.on(event, listeners[event]);
+                });
+                this._watchedSenders.set(id, {sender, listeners});
+            };
+
+            this._detach = () => {
+                this.renderer = null;
+                this._rendererId = null;
+                this.Ipc.removeListener("terminal_channel-"+this.port, this._ipcListener);
+                this._watchedSenders.forEach(({sender, listeners}) => {
+                    if (sender.isDestroyed()) return;
+                    Object.keys(listeners).forEach(event => {
+                        sender.removeListener(event, listeners[event]);
+                    });
+                });
+                this._watchedSenders.clear();
+            };
+
+            this.tty.onData(data => {
+                this._nextTickUpdateTtyCWD = true;
+                this._nextTickUpdateProcess = true;
+                if (this.renderer !== null) {
+                    this._sendToRenderer("Output", data);
+                } else {
+                    this._outputBuffer.push(data);
                 }
             });
-            this.Ipc.on("terminal_channel-"+this.port, (e, ...args) => {
+
+            this._ipcListener = (e, ...args) => {
                 switch(args[0]) {
                     case "Renderer startup":
                         this.renderer = e.sender;
+                        this._rendererId = e.sender.id;
+                        this._watchSender(e.sender);
                         if (!this._disableCWDtracking && this.tty._cwd) {
-                            this.renderer.send("terminal_channel-"+this.port, "New cwd", this.tty._cwd);
+                            this._sendToRenderer("New cwd", this.tty._cwd);
                         }
                         if (this._disableCWDtracking) {
-                            this.renderer.send("terminal_channel-"+this.port, "Fallback cwd", opts.cwd || process.env.PWD);
+                            this._sendToRenderer("Fallback cwd", opts.cwd || process.env.PWD);
+                        }
+                        if (this._outputBuffer.length > 0) {
+                            this._sendToRenderer("Output", this._outputBuffer.join(""));
+                            this._outputBuffer = [];
+                        }
+                        this.onopened(this.tty._pid);
+                        break;
+                    case "Data":
+                        if (this.renderer !== null && e.sender.id === this._rendererId) {
+                            this.tty.write(args[1]);
+                        }
+                        break;
+                    case "Binary":
+                        if (this.renderer !== null && e.sender.id === this._rendererId) {
+                            this.tty.write(Buffer.from(args[1]));
                         }
                         break;
                     case "Resize":
@@ -454,27 +529,11 @@ class Terminal {
                     default:
                         return;
                 }
-            });
-            this.wss.on("connection", ws => {
-                this.onopened(this.tty._pid);
-                ws.on("close", (code, reason) => {
-                    this.ondisconnected(code, reason);
-                });
-                ws.on("message", msg => {
-                    this.tty.write(msg);
-                });
-                this.tty.onData(data => {
-                    this._nextTickUpdateTtyCWD = true;
-                    this._nextTickUpdateProcess = true;
-                    try {
-                        ws.send(data);
-                    } catch (e) {
-                        // Websocket closed
-                    }
-                });
-            });
+            };
+            this.Ipc.on("terminal_channel-"+this.port, this._ipcListener);
 
             this.close = () => {
+                this._detach();
                 this.tty.kill();
                 this._closed = true;
             };

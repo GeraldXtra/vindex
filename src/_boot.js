@@ -307,7 +307,6 @@ app.on('ready', async () => {
             signale.success(`New terminal back-end initialized at ${port}`);
             term.onclosed = (code, signal) => {
                 term.ondisconnected = () => {};
-                term.wss.close();
                 signale.complete(`TTY exited at ${port}`, code, signal);
                 extraTtys[term.port] = null;
                 term = null;
@@ -319,7 +318,6 @@ app.on('ready', async () => {
             term.ondisconnected = () => {
                 term.onclosed = () => {};
                 term.close();
-                term.wss.close();
                 extraTtys[term.port] = null;
                 term = null;
             };
