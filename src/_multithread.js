@@ -41,34 +41,58 @@ if (cluster.isMaster) {
         lastID = selectedID;
     }
 
-    var queue = {};
-    ipc.on("systeminformation-call", (e, type, id, ...args) => {
-        if (!si[type]) {
-            signale.warn("Illegal request for systeminformation");
-            return;
-        }
+    const allowedCalls = ["battery", "blockDevices", "chassis", "cpu", "cpuTemperature", "currentLoad", "fsSize", "mem", "networkConnections", "networkInterfaces", "networkStats", "processes", "system"];
 
-        if (args.length > 1 || workers.length <= 0) {
-            si[type](...args).then(res => {
-                if (e.sender) {
-                    e.sender.send("systeminformation-reply-"+id, res);
+    function isAllowedCall(type, args) {
+        if (!allowedCalls.includes(type)) return false;
+        if (args.length === 0) return true;
+        return type === "networkStats" && args.length === 1 && (typeof args[0] === "string" || args[0] === null);
+    }
+
+    var queue = {};
+    var lastCallID = 0;
+    module.exports = isAllowedSender => {
+        ipc.handle("systeminformation-call", (e, type, ...args) => {
+            try {
+                if (!isAllowedSender(e) || !isAllowedCall(type, args)) {
+                    signale.warn("Illegal request for systeminformation");
+                    return null;
                 }
-            });
-        } else {
-            queue[id] = e.sender;
-            dispatch(type, id, args[0]);
-        }
-    });
+
+                if (args.length > 1 || workers.length <= 0) {
+                    return si[type](...args).catch(err => {
+                        signale.error(`systeminformation ${type} call failed:`, err);
+                        return null;
+                    });
+                }
+
+                return new Promise(resolve => {
+                    let id = ++lastCallID;
+                    queue[id] = resolve;
+                    try {
+                        dispatch(type, id, args[0]);
+                    } catch(err) {
+                        delete queue[id];
+                        signale.error(`Could not dispatch systeminformation ${type} call:`, err);
+                        resolve(null);
+                    }
+                });
+            } catch(err) {
+                signale.error("Could not handle systeminformation call:", err);
+                return null;
+            }
+        });
+    };
 
     cluster.on("message", (worker, msg) => {
-        msg = JSON.parse(msg);
         try {
-            if (!queue[msg.id].isDestroyed()) {
-                queue[msg.id].send("systeminformation-reply-"+msg.id, msg.res);
+            msg = JSON.parse(msg);
+            if (queue[msg.id]) {
+                queue[msg.id](msg.res);
                 delete queue[msg.id];
             }
         } catch(e) {
-            // Window has been closed, ignore.
+            signale.error("Could not handle a systeminformation reply:", e);
         }
     });
 } else if (cluster.isWorker) {

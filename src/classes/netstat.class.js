@@ -47,7 +47,7 @@ class Netstat {
         };
         let geolite2 = require("geolite2-redist");
         let maxmind = require("maxmind");
-        geolite2.downloadDbs(require("path").join(require("@electron/remote").app.getPath("userData"), "geoIPcache")).then(() => {
+        geolite2.downloadDbs(require("path").join(window.vindex.userDataPath, "geoIPcache")).then(() => {
            geolite2.open('GeoLite2-City', path => {
                 return maxmind.open(path);
             }).catch(e => {throw e}).then(lookup => {
@@ -127,9 +127,8 @@ class Netstat {
                                 if (this.failedAttempts[e] > 2) return false;
                                 console.warn(e);
                                 console.info(rawData.toString());
-                                let electron = require("electron");
-                                electron.ipcRenderer.send("log", "note", "NetStat: Error parsing data from myexternalip.com");
-                                electron.ipcRenderer.send("log", "debug", `Error: ${e}`);
+                                window.vindex.log("note", "NetStat: Error parsing data from myexternalip.com");
+                                window.vindex.log("debug", `Error: ${e}`);
                             }
                         });
                     }).on("error", e => {

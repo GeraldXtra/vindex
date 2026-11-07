@@ -7,7 +7,6 @@ class Terminal {
             const {FitAddon} = require("xterm-addon-fit");
             const {LigaturesAddon} = require("xterm-addon-ligatures");
             const {WebglAddon} = require("xterm-addon-webgl");
-            this.Ipc = require("electron").ipcRenderer;
 
             this.port = opts.port || 3000;
             this.cwd = "";
@@ -22,7 +21,7 @@ class Terminal {
                 while (rows.length < 3) {
                     rows = "0"+rows;
                 }
-                this.Ipc.send("terminal_channel-"+this.port, "Resize", cols, rows);
+                window.vindex.terminalResize(this.port, cols, rows);
             };
 
             // Support for custom color filters on the terminal - see #483
@@ -148,8 +147,8 @@ class Terminal {
             document.querySelectorAll('.xterm-helper-textarea').forEach(textarea => textarea.setAttribute('readonly', 'readonly'))
             this.term.focus();
 
-            this.Ipc.send("terminal_channel-"+this.port, "Renderer startup");
-            this._ipcListener = (e, ...args) => {
+            window.vindex.terminalStartup(this.port);
+            this._ipcListener = (...args) => {
                 switch(args[0]) {
                     case "Output":
                         this.term.write(args[1]);
@@ -176,7 +175,7 @@ class Terminal {
                         }
                         break;
                     case "Exit":
-                        this.Ipc.removeListener("terminal_channel-"+this.port, this._ipcListener);
+                        this._removeIpcListener();
                         if (this.onclose) {
                             this.onclose();
                         }
@@ -198,20 +197,20 @@ class Terminal {
                         return;
                 }
             };
-            this.Ipc.on("terminal_channel-"+this.port, this._ipcListener);
+            this._removeIpcListener = window.vindex.onTerminalMessage(this.port, this._ipcListener);
             this.resendCWD = () => {
                 this.oncwdchange(this.cwd || null);
             };
 
             this.term.onData(data => {
-                this.Ipc.send("terminal_channel-"+this.port, "Data", data);
+                window.vindex.terminalWrite(this.port, data);
             });
             this.term.onBinary(data => {
                 let buffer = new Uint8Array(data.length);
                 for (let i = 0; i < data.length; i++) {
                     buffer[i] = data.charCodeAt(i) & 255;
                 }
-                this.Ipc.send("terminal_channel-"+this.port, "Binary", buffer);
+                window.vindex.terminalWriteBinary(this.port, buffer);
             });
 
             this.lastSoundFX = Date.now();
@@ -281,11 +280,11 @@ class Terminal {
             };
 
             this.write = cmd => {
-                this.Ipc.send("terminal_channel-"+this.port, "Data", cmd);
+                window.vindex.terminalWrite(this.port, cmd);
             };
 
             this.writelr = cmd => {
-                this.Ipc.send("terminal_channel-"+this.port, "Data", cmd+"\r");
+                window.vindex.terminalWrite(this.port, cmd+"\r");
             };
 
             this.clipboard = {
@@ -296,7 +295,7 @@ class Terminal {
                     this.clipboard.didCopy = true;
                 },
                 paste: () => {
-                    this.write(remote.clipboard.readText());
+                    window.vindex.readClipboardText().then(text => this.write(text));
                     this.clipboard.didCopy = false;
                 },
                 didCopy: false
@@ -308,6 +307,7 @@ class Terminal {
 
             this.Pty = require("node-pty");
             this.Ipc = require("electron").ipcMain;
+            const signale = require("signale");
 
             this.renderer = null;
             this.port = opts.port || 3000;
@@ -468,7 +468,7 @@ class Terminal {
             this._detach = () => {
                 this.renderer = null;
                 this._rendererId = null;
-                this.Ipc.removeListener("terminal_channel-"+this.port, this._ipcListener);
+                this.Ipc.removeListener("terminal_channel-"+this.port, this._ipcGuard);
                 this._watchedSenders.forEach(({sender, listeners}) => {
                     if (sender.isDestroyed()) return;
                     Object.keys(listeners).forEach(event => {
@@ -530,7 +530,32 @@ class Terminal {
                         return;
                 }
             };
-            this.Ipc.on("terminal_channel-"+this.port, this._ipcListener);
+            this._isValidMessage = args => {
+                switch(args[0]) {
+                    case "Renderer startup":
+                        return args.length === 1;
+                    case "Data":
+                        return args.length === 2 && typeof args[1] === "string";
+                    case "Binary":
+                        return args.length === 2 && args[1] instanceof Uint8Array;
+                    case "Resize":
+                        return args.length === 3 && typeof args[1] === "string" && typeof args[2] === "string" && /^[0-9]+$/.test(args[1]) && /^[0-9]+$/.test(args[2]);
+                    default:
+                        return false;
+                }
+            };
+            this._ipcGuard = (e, ...args) => {
+                try {
+                    if (typeof opts.isAllowedSender !== "function" || !opts.isAllowedSender(e) || !this._isValidMessage(args)) {
+                        signale.warn(`Rejected terminal_channel-${this.port} message from the window`);
+                        return;
+                    }
+                    this._ipcListener(e, ...args);
+                } catch(err) {
+                    signale.error(`Could not handle terminal_channel-${this.port} message:`, err);
+                }
+            };
+            this.Ipc.on("terminal_channel-"+this.port, this._ipcGuard);
 
             this.close = () => {
                 this._detach();
