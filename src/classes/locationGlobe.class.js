@@ -204,7 +204,7 @@ class LocationGlobe {
         window.si.networkConnections().then(conns => {
             let newconns = [];
             conns.forEach(conn => {
-                let ip = conn.peeraddress;
+                let ip = conn.peerAddress;
                 let state = conn.state;
                 if (state === "ESTABLISHED" && ip !== "0.0.0.0" && ip !== "127.0.0.1" && ip !== "::") {
                     newconns.push(ip);

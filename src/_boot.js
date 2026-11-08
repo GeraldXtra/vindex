@@ -437,6 +437,10 @@ onWindowMessage("app-quit", hasNoArgs, () => {
     app.quit();
 });
 handleWindowRequest("clipboard-read-text", hasNoArgs, () => electron.clipboard.readText(), "");
+handleWindowRequest("clipboard-write-text", args => args.length === 1 && typeof args[0] === "string" && args[0].length <= 10485760, async (e, text) => {
+    await electron.clipboard.writeText(text);
+    return true;
+}, false);
 handleWindowRequest("screen-display-count", hasNoArgs, () => electron.screen.getAllDisplays().length, 0);
 onWindowMessage("shell-open-path", args => args.length === 1 && typeof args[0] === "string", (e, target) => {
     openFile(target);
@@ -794,8 +798,8 @@ function createWindow(settings) {
     win.on("leave-full-screen", () => {
         sendToWindow("window-leave-full-screen");
     });
-    win.webContents.on("did-start-navigation", guardListener("Could not handle a window navigation:", (e, navigationURL, isInPlace, isMainFrame) => {
-        if (isMainFrame && !isInPlace) closeDirWatcher();
+    win.webContents.on("did-start-navigation", guardListener("Could not handle a window navigation:", e => {
+        if (e.isMainFrame && !e.isSameDocument) closeDirWatcher();
     }));
     win.webContents.on("render-process-gone", guardListener("Could not handle the lost window process:", () => {
         closeDirWatcher();
@@ -804,11 +808,9 @@ function createWindow(settings) {
         closeDirWatcher();
     }));
 
-    win.loadURL(url.format({
-        pathname: path.join(__dirname, 'ui.html'),
-        protocol: 'file:',
-        slashes: true
-    }));
+    win.loadFile(path.join(__dirname, "ui.html")).catch(err => {
+        signale.error("Could not load the window page:", err);
+    });
 
     signale.complete("Frontend window created!");
     win.show();
@@ -952,11 +954,10 @@ app.on('ready', async () => {
 
 app.on('web-contents-created', (e, contents) => {
     // Prevent creating more than one window
-    contents.on('new-window', (e, url) => {
+    contents.setWindowOpenHandler(details => {
         try {
-            e.preventDefault();
-            if (isHttpsURL(url)) {
-                shell.openExternal(url).catch(err => {
+            if (isHttpsURL(details.url)) {
+                shell.openExternal(details.url).catch(err => {
                     signale.error("Could not open an external link:", err);
                 });
             } else {
@@ -965,11 +966,12 @@ app.on('web-contents-created', (e, contents) => {
         } catch(err) {
             signale.error("Could not handle a new window request:", err);
         }
+        return {action: "deny"};
     });
 
     // Prevent loading something else than the UI
-    contents.on('will-navigate', (e, url) => {
-        if (url !== contents.getURL()) e.preventDefault();
+    contents.on("will-navigate", e => {
+        if (e.url !== contents.getURL()) e.preventDefault();
     });
 });
 

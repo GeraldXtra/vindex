@@ -102,6 +102,10 @@ const vindex = Object.freeze({
     readClipboardText: () => {
         return ipcRenderer.invoke("clipboard-read-text");
     },
+    writeClipboardText: text => {
+        requireValid(typeof text === "string", "Clipboard text must be a string");
+        return ipcRenderer.invoke("clipboard-write-text", text);
+    },
     getDisplayCount: () => {
         return ipcRenderer.invoke("screen-display-count");
     },

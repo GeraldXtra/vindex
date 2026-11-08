@@ -537,7 +537,8 @@ window.openSettings = async () => {
     for (let i = 0; i < displayCount; i++) {
         if (i !== window.settings.monitor) monitors += `<option>${i}</option>`;
     }
-    let nets = await window.si.networkInterfaces();
+    let nets = await window.si.networkInterfaces(false);
+    if (!Array.isArray(nets)) nets = [];
     nets.forEach(net => {
         if (net.iface !== window.mods.netstat.iface) ifaces += `<option>${net.iface}</option>`;
     });

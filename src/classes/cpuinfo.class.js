@@ -122,7 +122,10 @@ class Cpuinfo {
         window.si.currentLoad().then(data => {
             let average = [[], []];
 
-            if (!data.cpus) return; // Prevent memleak in rare case where systeminformation takes extra time to retrieve CPU info (see github issue #216)
+            if (!data || !Array.isArray(data.cpus)) {
+                this.updatingCPUload = false;
+                return; // Prevent memleak in rare case where systeminformation takes extra time to retrieve CPU info (see github issue #216)
+            }
 
             data.cpus.forEach((e, i) => {
                 this.series[i].append(new Date().getTime(), e.load);

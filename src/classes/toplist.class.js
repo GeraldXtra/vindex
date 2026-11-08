@@ -24,6 +24,10 @@ class Toplist {
 
         this.currentlyUpdating = true;
         window.si.processes().then(data => {
+            if (!data || !Array.isArray(data.list)) {
+                this.currentlyUpdating = false;
+                return;
+            }
             if (window.settings.excludeThreadsFromToplist === true) {
                 data.list = data.list.sort((a, b) => {
                     return (a.pid-b.pid);
@@ -101,6 +105,10 @@ class Toplist {
             if (currentlyUpdating) return;
             currentlyUpdating = true;
             window.si.processes().then(data => {
+                if (!data || !Array.isArray(data.list)) {
+                    currentlyUpdating = false;
+                    return;
+                }
                 if (window.settings.excludeThreadsFromToplist === true) {
                     data.list = data.list.sort((a, b) => {
                         return (a.pid - b.pid);

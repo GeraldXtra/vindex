@@ -218,7 +218,7 @@ class Terminal {
             this.clipboard = {
                 copy: () => {
                     if (!this.term.hasSelection()) return false;
-                    document.execCommand("copy");
+                    window.vindex.writeClipboardText(this.term.getSelection());
                     this.term.clearSelection();
                     this.clipboard.didCopy = true;
                 },
@@ -249,7 +249,7 @@ class Terminal {
             this._disableCWDtracking = false;
             this._getTtyCWD = tty => {
                 return new Promise((resolve, reject) => {
-                    let pid = tty._pid;
+                    let pid = tty.pid;
                     switch(require("os").type()) {
                         case "Linux":
                             require("fs").readlink(`/proc/${pid}/cwd`, (e, cwd) => {
@@ -276,7 +276,7 @@ class Terminal {
             };
             this._getTtyProcess = tty => {
                 return new Promise((resolve, reject) => {
-                    let pid = tty._pid;
+                    let pid = tty.pid;
                     switch(require("os").type()) {
                         case "Linux":
                         case "Darwin":
@@ -346,11 +346,11 @@ class Terminal {
                 env: opts.env || process.env
             });
 
-            this.tty.onExit((code, signal) => {
+            this.tty.onExit(({exitCode, signal}) => {
                 this._closed = true;
                 this._sendToRenderer("Exit");
                 this._detach();
-                this.onclosed(code, signal);
+                this.onclosed(exitCode, signal);
             });
 
             this._rendererId = null;
@@ -374,8 +374,8 @@ class Terminal {
                 let id = sender.id;
                 if (this._watchedSenders.has(id)) return;
                 let listeners = {
-                    "did-start-navigation": (e, url, isInPlace, isMainFrame) => {
-                        if (isMainFrame && !isInPlace && url === sender.getURL()) {
+                    "did-start-navigation": e => {
+                        if (e.isMainFrame && !e.isSameDocument && e.url === sender.getURL()) {
                             this._disconnect(id);
                         }
                     },
@@ -432,7 +432,7 @@ class Terminal {
                             this._sendToRenderer("Output", this._outputBuffer.join(""));
                             this._outputBuffer = [];
                         }
-                        this.onopened(this.tty._pid);
+                        this.onopened(this.tty.pid);
                         break;
                     case "Data":
                         if (this.renderer !== null && e.sender.id === this._rendererId) {

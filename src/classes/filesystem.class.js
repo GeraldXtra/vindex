@@ -519,7 +519,12 @@ class FilesystemDisplay {
         // ...except if we're hot-reloading, in which case this can mess up the rendering
         // See #392
         if (window.performance.navigation.type === 0) {
-            this.readFS(window.term[window.currentTerm].cwd || window.settings.cwd);
+            let startCwd = window.term[window.currentTerm].cwd || window.settings.cwd;
+            if (startCwd.startsWith("FALLBACK |-- ")) {
+                startCwd = startCwd.slice(13);
+                this._noTracking = true;
+            }
+            this.readFS(startCwd);
         }
 
         this.openFile = async (name, path, type) => { //Might add text formatting at some point, not now though - Surge

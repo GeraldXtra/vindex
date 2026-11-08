@@ -42,41 +42,31 @@ class Netstat {
         });
     }
     updateInfo() {
-        window.si.networkInterfaces().then(async data => {
+        window.si.networkInterfaces(false).then(async data => {
             let offline = false;
 
-            let net = data[0];
-            let netID = 0;
+            if (!Array.isArray(data) || data.length === 0) return;
+
+            let net;
 
             if (typeof window.settings.iface === "string") {
-                while (net.iface !== window.settings.iface) {
-                    netID++;
-                    if (data[netID]) {
-                        net = data[netID];
-                    } else {
-                        // No detected interface has the custom iface name, fallback to automatic detection on next loop
-                        window.settings.iface = false;
-                        return false;
-                    }
+                net = data.find(iface => iface.iface === window.settings.iface);
+                if (!net) {
+                    window.settings.iface = false;
+                    return false;
                 }
             } else {
-                // Find the first external, IPv4 connected networkInterface that has a MAC address set
+                let usable = data.filter(iface => iface.operstate === "up" && iface.internal !== true && iface.ip4 !== "" && iface.mac !== "");
+                net = usable.find(iface => iface.default === true) || usable[0];
+                if (!net) {
+                    this.iface = null;
+                    document.getElementById("mod_netstat_iname").innerText = "Interface: (offline)";
 
-                while (net.operstate !== "up" || net.internal === true || net.ip4 === "" || net.mac === "") {
-                    netID++;
-                    if (data[netID]) {
-                        net = data[netID];
-                    } else {
-                        // No external connection!
-                        this.iface = null;
-                        document.getElementById("mod_netstat_iname").innerText = "Interface: (offline)";
-
-                        this.offline = true;
-                        document.querySelector("#mod_netstat_innercontainer > div:first-child > h2").innerHTML = "OFFLINE";
-                        document.querySelector("#mod_netstat_innercontainer > div:nth-child(2) > h2").innerHTML = "--.--.--.--";
-                        document.querySelector("#mod_netstat_innercontainer > div:nth-child(3) > h2").innerHTML = "--ms";
-                        break;
-                    }
+                    this.offline = true;
+                    document.querySelector("#mod_netstat_innercontainer > div:first-child > h2").innerHTML = "OFFLINE";
+                    document.querySelector("#mod_netstat_innercontainer > div:nth-child(2) > h2").innerHTML = "--.--.--.--";
+                    document.querySelector("#mod_netstat_innercontainer > div:nth-child(3) > h2").innerHTML = "--ms";
+                    return;
                 }
             }
 
