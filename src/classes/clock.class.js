@@ -48,7 +48,3 @@ class Clock {
         this.lastTime = time;
     }
 }
-
-module.exports = {
-    Clock
-};

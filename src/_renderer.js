@@ -1,5 +1,5 @@
 // Disable eval()
-window.eval = global.eval = function () {
+window.eval = function () {
     throw new Error("eval() is disabled for security reasons.");
 };
 // Security helper :)
@@ -34,51 +34,11 @@ window.onerror = (msg, path, line, col, error) => {
     document.getElementById("boot_screen").innerHTML += `${error} :  ${msg}<br/>==> at ${path}  ${line}:${col}`;
 };
 
-const path = require("path");
-const fs = require("fs");
-
+const pathSeparator = (window.vindex.platform === "win32") ? "\\" : "/";
 const settingsDir = window.vindex.userDataPath;
-const themesDir = path.join(settingsDir, "themes");
-const keyboardsDir = path.join(settingsDir, "keyboards");
-const fontsDir = path.join(settingsDir, "fonts");
-const settingsFile = path.join(settingsDir, "settings.json");
-const shortcutsFile = path.join(settingsDir, "shortcuts.json");
-const lastWindowStateFile = path.join(settingsDir, "lastWindowState.json");
-
-// Load config
-window.settings = require(settingsFile);
-window.shortcuts = require(shortcutsFile);
-window.lastWindowState = require(lastWindowStateFile);
-
-// Load CLI parameters
-if (window.vindex.nointro) {
-    window.settings.nointroOverride = true;
-} else {
-    window.settings.nointroOverride = false;
-}
-if (window.vindex.nocursor) {
-    window.settings.nocursorOverride = true;
-} else {
-    window.settings.nocursorOverride = false;
-}
-
-// Retrieve theme override (hotswitch)
-window.vindex.getThemeOverride().then(theme => {
-    if (theme !== null) {
-        window.settings.theme = theme;
-        window.settings.nointroOverride = true;
-        _loadTheme(require(path.join(themesDir, window.settings.theme+".json")));
-    } else {
-        _loadTheme(require(path.join(themesDir, window.settings.theme+".json")));
-    }
-});
-// Same for keyboard override/hotswitch
-window.vindex.getKbOverride().then(layout => {
-    if (layout !== null) {
-        window.settings.keyboard = layout;
-        window.settings.nointroOverride = true;
-    }
-});
+const themesDir = settingsDir + pathSeparator + "themes";
+const keyboardsDir = settingsDir + pathSeparator + "keyboards";
+const fontsDir = settingsDir + pathSeparator + "fonts";
 
 // Load UI theme
 window._loadTheme = theme => {
@@ -88,9 +48,9 @@ window._loadTheme = theme => {
     }
 
     // Load fonts
-    let mainFont = new FontFace(theme.cssvars.font_main, `url("${path.join(fontsDir, theme.cssvars.font_main.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
-    let lightFont = new FontFace(theme.cssvars.font_main_light, `url("${path.join(fontsDir, theme.cssvars.font_main_light.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
-    let termFont = new FontFace(theme.terminal.fontFamily, `url("${path.join(fontsDir, theme.terminal.fontFamily.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
+    let mainFont = new FontFace(theme.cssvars.font_main, `url("${(fontsDir + pathSeparator + theme.cssvars.font_main.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
+    let lightFont = new FontFace(theme.cssvars.font_main_light, `url("${(fontsDir + pathSeparator + theme.cssvars.font_main_light.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
+    let termFont = new FontFace(theme.terminal.fontFamily, `url("${(fontsDir + pathSeparator + theme.terminal.fontFamily.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
 
     document.fonts.add(mainFont);
     document.fonts.load("12px "+theme.cssvars.font_main);
@@ -149,24 +109,19 @@ function initGraphicalErrorHandling() {
     };
 }
 
-function waitForFonts() {
-    return new Promise(resolve => {
-        if (document.readyState !== "complete" || document.fonts.status !== "loaded") {
-            document.addEventListener("readystatechange", () => {
+async function waitForFonts() {
+    if (document.readyState !== "complete") {
+        await new Promise(resolve => {
+            let listener = () => {
                 if (document.readyState === "complete") {
-                    if (document.fonts.status === "loaded") {
-                        resolve();
-                    } else {
-                        document.fonts.onloadingdone = () => {
-                            if (document.fonts.status === "loaded") resolve();
-                        };
-                    }
+                    document.removeEventListener("readystatechange", listener);
+                    resolve();
                 }
-            });
-        } else {
-            resolve();
-        }
-    });
+            };
+            document.addEventListener("readystatechange", listener);
+        });
+    }
+    await document.fonts.ready;
 }
 
 // A proxy function used to add multithreading to systeminformation calls - see backend process manager @ _multithread.js
@@ -191,33 +146,14 @@ function initSystemInformationProxy() {
     });
 }
 
-// Init audio
-window.audioManager = new AudioManager();
-
-// See #223
-window.vindex.focusApp();
-
 let i = 0;
-if (window.settings.nointro || window.settings.nointroOverride) {
-    initGraphicalErrorHandling();
-    initSystemInformationProxy();
-    document.getElementById("boot_screen").remove();
-    document.body.setAttribute("class", "");
-    waitForFonts().then(initUI);
-} else {
-    displayLine();
-}
+let bootLog = [];
+let isArchUser = false;
 
 // Startup boot log
 function displayLine() {
     let bootScreen = document.getElementById("boot_screen");
-    let log = fs.readFileSync(path.join(__dirname, "assets", "misc", "boot_log.txt")).toString().split('\n');
-
-    function isArchUser() {
-        return require("os").platform() === "linux"
-                && fs.existsSync("/etc/os-release")
-                && fs.readFileSync("/etc/os-release").toString().includes("arch");
-    }
+    let log = bootLog;
 
     if (typeof log[i] === "undefined") {
         setTimeout(displayTitleScreen, 300);
@@ -251,7 +187,7 @@ function displayLine() {
             setTimeout(displayLine, 25);
             break;
         case i === 83:
-            if (isArchUser())
+            if (isArchUser)
                 bootScreen.innerHTML += "btw i use arch<br/>";
             setTimeout(displayLine, 25);
             break;
@@ -325,7 +261,7 @@ async function getDisplayName() {
         return user;
 
     try {
-        user = await require("username")();
+        user = await window.vindex.getUsername();
     } catch (e) {}
 
     return user;
@@ -333,6 +269,12 @@ async function getDisplayName() {
 
 // Create the UI's html structure and initialize the terminal client and the keyboard
 async function initUI() {
+    window.fileIcons = await window.vindex.getFileIcons();
+    window.globeGrid = await window.vindex.getGlobeGrid();
+    let colorFilter = window.theme.terminal.colorFilter;
+    if (!Array.isArray(colorFilter) || !colorFilter.every(step => typeof step === "string")) colorFilter = [];
+    window.terminalPalette = await window.vindex.getTerminalPalette(`rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b})`, colorFilter);
+
     document.body.innerHTML += `<section class="mod_column" id="mod_column_left">
         <h3 class="title"><p>PANEL</p><p>SYSTEM</p></h3>
     </section>
@@ -363,7 +305,7 @@ async function initUI() {
     <section id="keyboard" style="opacity:0;">
     </section>`;
     window.keyboard = new Keyboard({
-        layout: path.join(keyboardsDir, settings.keyboard+".json"),
+        layout: await window.vindex.readKeyboardLayout(window.settings.keyboard),
         container: "keyboard"
     });
 
@@ -478,7 +420,7 @@ async function initUI() {
     window.onmouseup = e => {
         if (window.keyboard.linkedToTerm) window.term[window.currentTerm].term.focus();
     };
-    window.term[0].term.writeln("\033[1m"+`Welcome to eDEX-UI v${window.vindex.appVersion} - Electron v${process.versions.electron}`+"\033[0m");
+    window.term[0].term.writeln("\033[1m"+`Welcome to eDEX-UI v${window.vindex.appVersion} - Electron v${window.vindex.electronVersion}`+"\033[0m");
 
     await _delay(100);
 
@@ -496,8 +438,6 @@ async function initUI() {
     }
 
     await _delay(200);
-
-    window.updateCheck = new UpdateChecker();
 }
 
 window.themeChanger = theme => {
@@ -507,10 +447,12 @@ window.themeChanger = theme => {
     }, 100);
 };
 
-window.remakeKeyboard = layout => {
+window.remakeKeyboard = async layout => {
+    let layoutData = await window.vindex.readKeyboardLayout(layout);
+    if (layoutData === null) throw new Error(`Could not load the keyboard layout "${layout}".`);
     document.getElementById("keyboard").innerHTML = "";
     window.keyboard = new Keyboard({
-        layout: path.join(keyboardsDir, layout+".json" || settings.keyboard+".json"),
+        layout: layoutData,
         container: "keyboard"
     });
     window.vindex.setKbOverride(layout);
@@ -581,15 +523,13 @@ window.openSettings = async () => {
 
     // Build lists of available keyboards, themes, monitors
     let keyboards, themes, monitors, ifaces;
-    fs.readdirSync(keyboardsDir).forEach(kb => {
-        if (!kb.endsWith(".json")) return;
-        kb = kb.replace(".json", "");
+    let keyboardLayouts = await window.vindex.listKeyboardLayouts();
+    keyboardLayouts.forEach(kb => {
         if (kb === window.settings.keyboard) return;
         keyboards += `<option>${kb}</option>`;
     });
-    fs.readdirSync(themesDir).forEach(th => {
-        if (!th.endsWith(".json")) return;
-        th = th.replace(".json", "");
+    let themeNames = await window.vindex.listThemes();
+    themeNames.forEach(th => {
         if (th === window.settings.theme) return;
         themes += `<option>${th}</option>`;
     });
@@ -804,13 +744,16 @@ window.openSettings = async () => {
     });
 };
 
-window.writeFile = (path) => {
-    fs.writeFile(path, document.getElementById("fileEdit").value, "utf-8", () => {
+window.writeFile = async (path) => {
+    let saved = await window.vindex.writeTextFile(path, document.getElementById("fileEdit").value);
+    if (saved === true) {
         document.getElementById("fedit-status").innerHTML = "<i>File saved.</i>";
-    });
+    } else {
+        document.getElementById("fedit-status").innerHTML = "<i>Could not save the file.</i>";
+    }
 };
 
-window.writeSettingsFile = () => {
+window.writeSettingsFile = async () => {
     window.settings = {
         shell: document.getElementById("settingsEditor-shell").value,
         shellArgs: document.getElementById("settingsEditor-shellArgs").value,
@@ -846,8 +789,12 @@ window.writeSettingsFile = () => {
         }
     });
 
-    fs.writeFileSync(settingsFile, JSON.stringify(window.settings, "", 4));
-    document.getElementById("settingsEditorStatus").innerText = "New values written to settings.json file at "+new Date().toTimeString();
+    let saved = await window.vindex.writeSettings(window.settings);
+    if (saved === true) {
+        document.getElementById("settingsEditorStatus").innerText = "New values written to settings.json file at "+new Date().toTimeString();
+    } else {
+        document.getElementById("settingsEditorStatus").innerText = "Could not write settings.json.";
+    }
 };
 
 window.toggleFullScreen = async () => {
@@ -857,7 +804,7 @@ window.toggleFullScreen = async () => {
     //Update settings
     window.lastWindowState["useFullscreen"] = useFullscreen;
 
-    fs.writeFileSync(lastWindowStateFile, JSON.stringify(window.lastWindowState, "", 4));
+    await window.vindex.saveFullscreenState(useFullscreen);
 };
 
 // Display available keyboard shortcuts and custom shortcuts helper
@@ -1051,7 +998,7 @@ document.addEventListener("keydown", e => {
     if (e.code.startsWith("Alt") && e.ctrlKey && e.shiftKey) {
         e.preventDefault();
     }
-    if (e.key === "F11" && !settings.allowWindowed) {
+    if (e.key === "F11" && !(window.settings && window.settings.allowWindowed)) {
         e.preventDefault();
     }
     if (e.code === "KeyD" && e.ctrlKey) {
@@ -1064,7 +1011,7 @@ document.addEventListener("keydown", e => {
 
 // Fix #265
 window.addEventListener("keyup", e => {
-    if (require("os").platform() === "win32" && e.key === "F4" && e.altKey === true) {
+    if (window.vindex.platform === "win32" && e.key === "F4" && e.altKey === true) {
         window.vindex.quitApp();
     }
 });
@@ -1081,7 +1028,7 @@ window.onresize = () => {
 // See #413
 window.resizeTimeout = null;
 window.vindex.onResize(() => {
-    if (settings.keepGeometry === false) return;
+    if (!window.settings || window.settings.keepGeometry === false) return;
     clearTimeout(window.resizeTimeout);
     window.resizeTimeout = setTimeout(async () => {
         if (await window.vindex.isFullScreen()) return false;
@@ -1104,3 +1051,62 @@ window.vindex.onResize(() => {
 window.vindex.onLeaveFullScreen(() => {
     window.vindex.setSize(960, 540);
 });
+
+async function startup() {
+    try {
+        let config = await window.vindex.readConfig();
+        if (config === null) throw new Error("Could not load settings.json, shortcuts.json or lastWindowState.json.");
+        window.settings = config.settings;
+        window.shortcuts = config.shortcuts;
+        window.lastWindowState = config.lastWindowState;
+
+        if (window.vindex.nointro) {
+            window.settings.nointroOverride = true;
+        } else {
+            window.settings.nointroOverride = false;
+        }
+        if (window.vindex.nocursor) {
+            window.settings.nocursorOverride = true;
+        } else {
+            window.settings.nocursorOverride = false;
+        }
+
+        let skipIntro = (window.settings.nointro || window.settings.nointroOverride);
+
+        let theme = await window.vindex.getThemeOverride();
+        if (theme !== null) {
+            window.settings.theme = theme;
+            window.settings.nointroOverride = true;
+        }
+        let themeData = await window.vindex.readTheme(window.settings.theme);
+        if (themeData === null) throw new Error(`Could not load the theme "${window.settings.theme}".`);
+        _loadTheme(themeData);
+
+        let layout = await window.vindex.getKbOverride();
+        if (layout !== null) {
+            window.settings.keyboard = layout;
+            window.settings.nointroOverride = true;
+        }
+
+        bootLog = (await window.vindex.readBootLog()).split("\n");
+        isArchUser = await window.vindex.isArchLinux();
+
+        window.audioManager = new AudioManager();
+        window.vindex.focusApp();
+
+        if (skipIntro) {
+            initGraphicalErrorHandling();
+            initSystemInformationProxy();
+            document.getElementById("boot_screen").remove();
+            document.body.setAttribute("class", "");
+            waitForFonts().then(initUI);
+        } else {
+            displayLine();
+        }
+    } catch(error) {
+        let bootScreen = document.getElementById("boot_screen");
+        if (bootScreen) bootScreen.innerHTML += window._escapeHtml(String((error && error.message) || error));
+    }
+}
+
+startup();

@@ -240,7 +240,3 @@ class Toplist {
         var updateInterval = setInterval(updateProcessList, 1000);
     }
 }
-
-module.exports = {
-    Toplist
-};

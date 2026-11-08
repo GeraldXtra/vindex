@@ -84,7 +84,3 @@ class RAMwatcher {
         }
     }
 }
-
-module.exports = {
-    RAMwatcher
-};

@@ -1,3 +1,26 @@
+function prettyBytes(number) {
+    if (!Number.isFinite(number)) {
+        throw new TypeError(`Expected a finite number, got ${typeof number}: ${number}`);
+    }
+
+    const units = ["B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"];
+    let prefix = "";
+
+    if (number < 0) {
+        prefix = "-";
+        number = -number;
+    }
+
+    if (number < 1) {
+        return prefix + number + " " + units[0];
+    }
+
+    const exponent = Math.min(Math.floor(Math.log10(number) / 3), units.length - 1);
+    number /= Math.pow(1000, exponent);
+
+    return prefix + Number(number.toPrecision(3)) + " " + units[exponent];
+}
+
 class Conninfo {
     constructor(parentId) {
         if (!parentId) throw "Missing parameters";
@@ -16,11 +39,7 @@ class Conninfo {
 
         this.current = document.querySelector("#mod_conninfo_innercontainer > h1 > i");
         this.total = document.querySelector("#mod_conninfo_innercontainer > h2 > i");
-        this._pb = require("pretty-bytes");
-
-        // Init Smoothie
-        let TimeSeries = require("smoothie").TimeSeries;
-        let SmoothieChart = require("smoothie").SmoothieChart;
+        this._pb = prettyBytes;
 
         // Set chart options
         let chartOptions = [{
@@ -90,7 +109,3 @@ class Conninfo {
         }
     }
 }
-
-module.exports = {
-    Conninfo
-};

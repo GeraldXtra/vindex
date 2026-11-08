@@ -223,7 +223,7 @@ Object.keys(atomConfig.fileIcons).forEach(key => {
     }
 });
 // End script
-fileIconsMatchScript += "}\nmodule.exports = matchIcon;";
+fileIconsMatchScript += "}\nif (typeof module !== \"undefined\") module.exports = matchIcon;";
 // Write the script
 fs.writeFileSync(path.join(__dirname, "src", "assets", "misc", "file-icons-match.js"), fileIconsMatchScript);
 console.log("Wrote file-icons-match.js");

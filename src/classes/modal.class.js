@@ -1,13 +1,23 @@
 window.modals = {};
 
+function randomModalId() {
+    const alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-";
+    let bytes = window.crypto.getRandomValues(new Uint8Array(21));
+    let id = "";
+    for (let i = 0; i < bytes.length; i++) {
+        id += alphabet[bytes[i] & 63];
+    }
+    return id;
+}
+
 class Modal {
     constructor(options, onclose) {
         if (!options || !options.type) throw "Missing parameters";
 
         this.type = options.type;
-        this.id = require("nanoid").nanoid();
+        this.id = randomModalId();
         while (typeof window.modals[this.id] !== "undefined") {
-            this.id = require("nanoid")();
+            this.id = randomModalId();
         }
         this.title = options.title || options.type || "Modal window";
         this.message = options.message || "Lorem ipsum dolor sit amet.";
@@ -180,7 +190,3 @@ class Modal {
         return this.id;
     }
 }
-
-module.exports = {
-    Modal
-};

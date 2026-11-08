@@ -2,10 +2,7 @@ class LocationGlobe {
     constructor(parentId) {
         if (!parentId) throw "Missing parameters";
 
-        const path = require("path");
-
-        this._geodata = require(path.join(__dirname, "assets/misc/grid.json"));
-        require(path.join(__dirname, "assets/vendor/encom-globe.js"));
+        this._geodata = window.globeGrid;
         this.ENCOM = window.ENCOM;
 
         // Create DOM and include lib
@@ -81,14 +78,8 @@ class LocationGlobe {
 
             // Connections
             this.conns = [];
-            this.addConn = ip => {
-                let data = null;
-                try {
-                    data = window.mods.netstat.geoLookup.get(ip);
-                } catch {
-                    // do nothing
-                }
-                let geo = (data !== null ? data.location : {});
+            this.addConn = async ip => {
+                let geo = (await window.vindex.geoLookup(ip)) || {};
                 if (geo.latitude && geo.longitude) {
                     const lat = Number(geo.latitude);
                     const lon = Number(geo.longitude);
@@ -139,9 +130,8 @@ class LocationGlobe {
         this.globe.addMarker(randomLat, randomLong, '');
         this.globe.addMarker(randomLat - 20, randomLong + 150, '', true);
     }
-    addTemporaryConnectedMarker(ip) {
-        let data = window.mods.netstat.geoLookup.get(ip);
-        let geo = (data !== null ? data.location : {});
+    async addTemporaryConnectedMarker(ip) {
+        let geo = (await window.vindex.geoLookup(ip)) || {};
         if (geo.latitude && geo.longitude) {
             const lat = Number(geo.latitude);
             const lon = Number(geo.longitude);
@@ -235,7 +225,3 @@ class LocationGlobe {
         });
     }
 }
-
-module.exports = {
-    LocationGlobe
-};

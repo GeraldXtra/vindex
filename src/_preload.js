@@ -25,6 +25,10 @@ function isWindowSize(value) {
     return Number.isSafeInteger(value) && value > 0;
 }
 
+function isPlainObject(value) {
+    return value !== null && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
+}
+
 function terminalChannel(port) {
     requireValid(Number.isSafeInteger(port) && port >= 0, "Terminal port must be a whole number");
     return "terminal_channel-"+port;
@@ -46,6 +50,8 @@ const vindex = Object.freeze({
     appVersion: readArgument("version"),
     nointro: readArgument("nointro") === "true",
     nocursor: readArgument("nocursor") === "true",
+    platform: process.platform,
+    electronVersion: process.versions.electron,
     log: (level, message) => {
         requireValid(logLevels.includes(level), "Unknown log level");
         requireValid(typeof message === "string", "Log message must be a string");
@@ -118,10 +124,6 @@ const vindex = Object.freeze({
     openShortcutsFile: () => {
         ipcRenderer.send("shell-open-config", "shortcuts.json");
     },
-    openExternal: link => {
-        requireValid(typeof link === "string", "Link must be a string");
-        ipcRenderer.send("shell-open-external", link);
-    },
     minimize: () => {
         ipcRenderer.send("window-minimize");
     },
@@ -159,13 +161,104 @@ const vindex = Object.freeze({
     },
     onShellShortcut: callback => {
         return listen("shortcut-shell", callback);
+    },
+    readConfig: () => {
+        return ipcRenderer.invoke("config-read");
+    },
+    writeSettings: settings => {
+        requireValid(isPlainObject(settings), "Settings must be a plain object");
+        return ipcRenderer.invoke("config-write-settings", settings);
+    },
+    saveFullscreenState: flag => {
+        requireValid(typeof flag === "boolean", "Fullscreen flag must be a boolean");
+        return ipcRenderer.invoke("config-write-window-state", flag);
+    },
+    readTheme: name => {
+        requireValid(typeof name === "string", "Theme name must be a string");
+        return ipcRenderer.invoke("theme-read", name);
+    },
+    listThemes: () => {
+        return ipcRenderer.invoke("theme-list");
+    },
+    readKeyboardLayout: name => {
+        requireValid(typeof name === "string", "Keyboard layout name must be a string");
+        return ipcRenderer.invoke("keyboard-read", name);
+    },
+    listKeyboardLayouts: () => {
+        return ipcRenderer.invoke("keyboard-list");
+    },
+    readBootLog: () => {
+        return ipcRenderer.invoke("boot-log-read");
+    },
+    isArchLinux: () => {
+        return ipcRenderer.invoke("os-is-arch");
+    },
+    getSystemUptime: () => {
+        return ipcRenderer.invoke("os-uptime");
+    },
+    getUsername: () => {
+        return ipcRenderer.invoke("os-username");
+    },
+    getFileIcons: () => {
+        return ipcRenderer.invoke("assets-file-icons");
+    },
+    getGlobeGrid: () => {
+        return ipcRenderer.invoke("assets-globe-grid");
+    },
+    getTerminalPalette: (baseColor, colorFilter) => {
+        requireValid(typeof baseColor === "string", "Base color must be a string");
+        requireValid(Array.isArray(colorFilter) && colorFilter.every(step => typeof step === "string"), "Color filter must be a list of strings");
+        return ipcRenderer.invoke("terminal-palette", baseColor, colorFilter);
+    },
+    readDir: dir => {
+        requireValid(typeof dir === "string", "Folder path must be a string");
+        return ipcRenderer.invoke("fs-read-dir", dir);
+    },
+    pathExists: target => {
+        requireValid(typeof target === "string", "Path must be a string");
+        return ipcRenderer.invoke("fs-exists", target);
+    },
+    readTextFile: file => {
+        requireValid(typeof file === "string", "File path must be a string");
+        return ipcRenderer.invoke("fs-read-text", file);
+    },
+    writeTextFile: (file, content) => {
+        requireValid(typeof file === "string", "File path must be a string");
+        requireValid(typeof content === "string", "File content must be a string");
+        return ipcRenderer.invoke("fs-write-text", file, content);
+    },
+    getFileType: name => {
+        requireValid(typeof name === "string", "File name must be a string");
+        return ipcRenderer.invoke("fs-file-type", name);
+    },
+    watchDir: dir => {
+        requireValid(typeof dir === "string", "Folder path must be a string");
+        ipcRenderer.send("fs-watch-start", dir);
+    },
+    unwatchDir: () => {
+        ipcRenderer.send("fs-watch-stop");
+    },
+    onDirChange: callback => {
+        return listen("fs-watch-event", callback);
+    },
+    startGeoIP: () => {
+        return ipcRenderer.invoke("geoip-start");
+    },
+    geoLookup: ip => {
+        requireValid(typeof ip === "string", "IP address must be a string");
+        return ipcRenderer.invoke("geoip-lookup", ip);
+    },
+    lookupPublicIP: localAddress => {
+        requireValid(typeof localAddress === "string", "Local address must be a string");
+        return ipcRenderer.invoke("netstat-public-ip", localAddress);
+    },
+    ping: (target, localAddress) => {
+        requireValid(typeof target === "string", "Ping target must be a string");
+        requireValid(typeof localAddress === "string", "Local address must be a string");
+        return ipcRenderer.invoke("netstat-ping", target, localAddress);
     }
 });
 
-try {
-    contextBridge.exposeInMainWorld("vindex", vindex);
-} catch(e) {
-    window.vindex = vindex;
-}
+contextBridge.exposeInMainWorld("vindex", vindex);
 
 webFrame.setVisualZoomLevelLimits(1, 1);

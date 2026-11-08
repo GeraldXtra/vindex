@@ -97,6 +97,7 @@ class FuzzyFinder {
                 return 0;
             }
            });
+           this.matches = results;
               
         if (results.length === 0) {
              this.results.innerHTML = `<li class="fuzzyFinderMatchSelected">No results</li>
@@ -117,19 +118,16 @@ class FuzzyFinder {
         this.results.innerHTML = html;
       }
       submit() {
-         let file = document.querySelector("li.fuzzyFinderMatchSelected").innerText;
+         let selectedEl = document.querySelector("li.fuzzyFinderMatchSelected");
+         let file = selectedEl.innerText;
          if (file === "No results" || file.length <= 0) {
              this.disp.close();
              return;
         }
         
-        let filePath = path.resolve(window.fsDisp.dirpath, file);
+        let filePath = this.matches[Number(selectedEl.id.substr(17))].path;
         
           window.term[window.currentTerm].write(`'${filePath}'`);
           this.disp.close();
      }
 }
-
-module.exports = {
-    FuzzyFinder
-};

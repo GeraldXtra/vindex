@@ -2,14 +2,12 @@ class FilesystemDisplay {
     constructor(opts) {
         if (!opts.parentId) throw "Missing options";
 
-        const fs = require("fs");
-        const path = require("path");
         this.cwd = [];
         this.cwd_path = null;
         this.iconcolor = `rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b})`;
         this._formatBytes = (a,b) => {if(0==a)return"0 Bytes";var c=1024,d=b||2,e=["Bytes","KB","MB","GB","TB","PB","EB","ZB","YB"],f=Math.floor(Math.log(a)/Math.log(c));return parseFloat((a/Math.pow(c,f)).toFixed(d))+" "+e[f]};
-        this.fileIconsMatcher = require("./assets/misc/file-icons-match.js");
-        this.icons = require("./assets/icons/file-icons.json");
+        this.fileIconsMatcher = matchIcon;
+        this.icons = window.fileIcons;
         this.edexIcons = {
             theme: {
                 width: 24,
@@ -66,22 +64,9 @@ class FilesystemDisplay {
             }
         }, 1000);
 
-        this._asyncFSwrapper = new Proxy(fs, {
-            get: function(fs, prop) {
-                if (prop in fs) {
-                    return function(...args) {
-                        return new Promise((resolve, reject) => {
-                            fs[prop](...args, (err, d) => {
-                                if (typeof err !== "undefined" && err !== null) reject(err);
-                                if (typeof d !== "undefined") resolve(d);
-                                if (typeof d === "undefined" && typeof err === "undefined") resolve();
-                            });
-                        });
-                    }
-                }
-            },
-            set: function() {
-                return false;
+        window.vindex.onDirChange(eventType => {
+            if (eventType != "change") {
+                this._runNextTick = true;
             }
         });
 
@@ -104,9 +89,7 @@ class FilesystemDisplay {
 
                 if (cwd && cwd !== this.cwd_path && window.currentTerm === num) {
                     this.cwd_path = cwd;
-                    if (this._fsWatcher) {
-                        this._fsWatcher.close();
-                    }
+                    window.vindex.unwatchDir();
                     if (cwd.startsWith("FALLBACK |-- ")) {
                         this.readFS(cwd.slice(13));
                         this._noTracking = true;
@@ -120,14 +103,7 @@ class FilesystemDisplay {
         this.followTab();
 
         this.watchFS = dir => {
-            if (this._fsWatcher) {
-                this._fsWatcher.close();
-            }
-            this._fsWatcher = fs.watch(dir, (eventType, filename) => {
-                if (eventType != "change") { // #758 - Don't refresh file view if only file contents have changed.
-                    this._runNextTick = true;
-                }
-            });
+            window.vindex.watchDir(dir);
         };
 
         this.toggleHidedotfiles = () => {
@@ -161,10 +137,11 @@ class FilesystemDisplay {
                 document.querySelector("section#filesystem > h3.title > p:first-of-type").innerText = "FILESYSTEM - TRACKING FAILED, RUNNING DETACHED FROM TTY";
             }
 
-            if (process.platform === "win32" && dir.endsWith(":")) dir = dir+"\\";
+            if (window.vindex.platform === "win32" && dir.endsWith(":")) dir = dir+"\\";
             let tcwd = dir;
-            let content = await this._asyncFSwrapper.readdir(tcwd).catch(err => {
-                console.warn(err);
+            let listing = await window.vindex.readDir(tcwd);
+            if (listing === null) {
+                console.warn(`Could not read ${tcwd}`);
                 if (this._noTracking === true && this.dirpath) { // #262
                     this.setFailedState();
                     setTimeout(() => {
@@ -173,66 +150,64 @@ class FilesystemDisplay {
                 } else {
                     this.setFailedState();
                 }
-            });
+                return false;
+            }
 
             this.reCalculateDiskUsage(tcwd);
 
             this.cwd = [];
 
-            await new Promise((resolve, reject) => {
-                if (content.length === 0) resolve();
+            let lstatFailed = false;
+            listing.entries.forEach(entry => {
+                let file = entry.name;
 
-                content.forEach(async (file, i) => {
-                    let fstat = await this._asyncFSwrapper.lstat(path.join(tcwd, file)).catch(e => {
-                        if (!e.message.includes("EPERM") && !e.message.includes("EBUSY")) {
-                            reject();
-                        }
-                    });
+                let e = {
+                    name: window._escapeHtml(file),
+                    path: entry.path,
+                    type: "other",
+                    category: "other",
+                    hidden: false
+                };
 
-                    let e = {
-                        name: window._escapeHtml(file),
-                        path: path.resolve(tcwd, file),
-                        type: "other",
-                        category: "other",
-                        hidden: false
-                    };
+                if (typeof entry.lstatError === "undefined") {
+                    e.lastAccessed = entry.mtime;
 
-                    if (typeof fstat !== "undefined") {
-                        e.lastAccessed = fstat.mtime.getTime();
+                    if (entry.isDirectory) {
+                        e.category = "dir";
+                        e.type = "dir";
+                    }
+                    if (e.category === "dir" && tcwd === settingsDir && file === "themes") e.type="edex-themesDir";
+                    if (e.category === "dir" && tcwd === settingsDir && file === "keyboards") e.type = "edex-kblayoutsDir";
 
-                        if (fstat.isDirectory()) {
-                            e.category = "dir";
-                            e.type = "dir";
-                        }
-                        if (e.category === "dir" && tcwd === settingsDir && file === "themes") e.type="edex-themesDir";
-                        if (e.category === "dir" && tcwd === settingsDir && file === "keyboards") e.type = "edex-kblayoutsDir";
-
-                        if (fstat.isSymbolicLink()) {
-                            e.category = "symlink";
-                            e.type = "symlink";
-                        }
-
-                        if (fstat.isFile()) {
-                            e.category = "file";
-                            e.type = "file";
-                            e.size = fstat.size;
-                        }
-                    } else {
-                        e.type = "system";
-                        e.hidden = true;
+                    if (entry.isSymbolicLink) {
+                        e.category = "symlink";
+                        e.type = "symlink";
                     }
 
-                    if (e.category === "file" && tcwd === themesDir && file.endsWith(".json")) e.type = "edex-theme";
-                    if (e.category === "file" && tcwd === keyboardsDir && file.endsWith(".json")) e.type = "edex-kblayout";
-                    if (e.category === "file" && tcwd === settingsDir && file === "settings.json") e.type = "edex-settings";
-                    if (e.category === "file" && tcwd === settingsDir && file === "shortcuts.json") e.type = "edex-shortcuts";
+                    if (entry.isFile) {
+                        e.category = "file";
+                        e.type = "file";
+                        e.size = entry.size;
+                    }
+                } else {
+                    if (!entry.lstatError.includes("EPERM") && !entry.lstatError.includes("EBUSY")) {
+                        lstatFailed = true;
+                    }
+                    e.type = "system";
+                    e.hidden = true;
+                }
 
-                    if (file.startsWith(".")) e.hidden = true;
+                if (e.category === "file" && tcwd === themesDir && file.endsWith(".json")) e.type = "edex-theme";
+                if (e.category === "file" && tcwd === keyboardsDir && file.endsWith(".json")) e.type = "edex-kblayout";
+                if (e.category === "file" && tcwd === settingsDir && file === "settings.json") e.type = "edex-settings";
+                if (e.category === "file" && tcwd === settingsDir && file === "shortcuts.json") e.type = "edex-shortcuts";
 
-                    this.cwd.push(e);
-                    if (i === content.length-1) resolve();
-                });
-            }).catch(() => { this.setFailedState() });
+                if (file.startsWith(".")) e.hidden = true;
+
+                this.cwd.push(e);
+            });
+
+            if (lstatFailed) this.setFailedState();
 
             if (this.failed) return false;
 
@@ -260,6 +235,7 @@ class FilesystemDisplay {
             }
 
             this.dirpath = tcwd;
+            this.parentPath = listing.parent;
             this.render(this.cwd);
             this._reading = false;
         };
@@ -269,8 +245,8 @@ class FilesystemDisplay {
 
             let blocks = await window.si.blockDevices();
             let devices = [];
-            blocks.forEach(block => {
-                if (fs.existsSync(block.mount)) {
+            for (const block of blocks) {
+                if (typeof block.mount === "string" && await window.vindex.pathExists(block.mount)) {
                     let type = (block.type === "rom") ? "rom" : "disk";
                     if (block.removable && block.type !== "rom") {
                         type = "usb";
@@ -282,7 +258,7 @@ class FilesystemDisplay {
                         path: block.mount
                     });
                 }
-            });
+            }
 
             this.render(devices, true);
         };
@@ -326,7 +302,7 @@ class FilesystemDisplay {
                     } else if (e.type === "up") {
                         cmd = `window.term[window.currentTerm].writelr("cd ..")`;
                     } else if (e.type === "disk" || e.type === "rom" || e.type === "usb") {
-                        if (process.platform === "win32") {
+                        if (window.vindex.platform === "win32") {
                             cmd = `window.term[window.currentTerm].writelr("${e.path.replace(/\\/g, '')}")`;
                         } else {
                             cmd = `window.term[window.currentTerm].writelr("cd \\"${e.path.replace(/\\/g, '')}\\"")`;
@@ -338,7 +314,7 @@ class FilesystemDisplay {
                     if (e.type === "dir" || e.type.endsWith("Dir")) {
                         cmd = `window.fsDisp.readFS(fsDisp.cwd[${blockIndex}].path)`;
                     } else if (e.type === "up") {
-                        cmd = `window.fsDisp.readFS(path.resolve(window.fsDisp.dirpath, ".."))`;
+                        cmd = `window.fsDisp.readFS(window.fsDisp.parentPath)`;
                     } else if (e.type === "disk" || e.type === "rom" || e.type === "usb") {
                         cmd = `window.fsDisp.readFS("${e.path.replace(/\\/g, '')}")`;
                     } else {
@@ -520,7 +496,7 @@ class FilesystemDisplay {
         this.renderDiskUsage = async fsBlock => {
             if (document.getElementById("fs_space_bar").getAttribute("onclick") !== "" || fsBlock === null) return;
 
-            let splitter = (process.platform === "win32") ? "\\" : "/";
+            let splitter = (window.vindex.platform === "win32") ? "\\" : "/";
             let displayMount = (fsBlock.mount.length < 18) ? fsBlock.mount : "..."+splitter+fsBlock.mount.split(splitter).pop();
 
             // See #226
@@ -546,7 +522,7 @@ class FilesystemDisplay {
             this.readFS(window.term[window.currentTerm].cwd || window.settings.cwd);
         }
 
-        this.openFile = (name, path, type) => { //Might add text formatting at some point, not now though - Surge
+        this.openFile = async (name, path, type) => { //Might add text formatting at some point, not now though - Surge
             let block;
 
             if (typeof name === "number") {
@@ -554,12 +530,11 @@ class FilesystemDisplay {
                 name = block.name;
             }
 
-            let mime = require("mime-types");
+            let fileType = await window.vindex.getFileType(name);
 
             block.path = block.path.replace(/\\/g, "/");
 
-            let filetype = mime.lookup(name.split(".")[name.split(".").length - 1]);
-            switch (filetype) {
+            switch (fileType.type) {
                 case "application/pdf":
                     let html = `<div>
                         <div class="pdf_options">
@@ -604,31 +579,32 @@ class FilesystemDisplay {
                     );
                     break;
                 default:
-                    if (mime.charset(filetype) === "UTF-8") {
-                        fs.readFile(block.path, 'utf-8', (err, data) => {
-                            if (err) {
-                                new Modal({
-                                    type: "info",
-                                    title: "Failed to load file: " + block.path,
-                                    html: err
-                                });
-                                console.log(err);
-                            };
-                            window.keyboard.detach();
-                            new Modal(
-                                {
-                                    type: "custom",
-                                    title: _escapeHtml(name),
-                                    html: `<textarea id="fileEdit" rows="40" cols="150" spellcheck="false">${data}</textarea><p id="fedit-status"></p>`,
-                                    buttons: [
-                                        {label:"Save to Disk",action:`window.writeFile('${block.path}')`}
-                                    ]
-                                }, () => {
-                                    window.keyboard.attach();
-                                    window.term[window.currentTerm].term.focus();
-                                }
-                            );
-                        });
+                    if (fileType.charset === "UTF-8") {
+                        let file = await window.vindex.readTextFile(block.path);
+                        if (typeof file.error === "string") {
+                            new Modal({
+                                type: "info",
+                                title: "Failed to load file: " + window._escapeHtml(block.path),
+                                message: window._escapeHtml(file.error)
+                            });
+                            return;
+                        }
+                        this.editingPath = block.path;
+                        window.keyboard.detach();
+                        new Modal(
+                            {
+                                type: "custom",
+                                title: _escapeHtml(name),
+                                html: `<textarea id="fileEdit" rows="40" cols="150" spellcheck="false"></textarea><p id="fedit-status"></p>`,
+                                buttons: [
+                                    {label:"Save to Disk",action:"window.writeFile(window.fsDisp.editingPath)"}
+                                ]
+                            }, () => {
+                                window.keyboard.attach();
+                                window.term[window.currentTerm].term.focus();
+                            }
+                        );
+                        document.getElementById("fileEdit").value = file.data;
                    break;
                 }
             }
@@ -736,7 +712,3 @@ class FilesystemDisplay {
         };
     }
 }
-
-module.exports = {
-    FilesystemDisplay
-};

@@ -45,7 +45,3 @@ class HardwareInspector {
         }).slice(0, 2).join(" ");
     }
 }
-
-module.exports = {
-    HardwareInspector
-};

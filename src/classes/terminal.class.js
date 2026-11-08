@@ -3,10 +3,9 @@ class Terminal {
         if (opts.role === "client") {
             if (!opts.parentId) throw "Missing options";
 
-            this.xTerm = require("xterm").Terminal;
-            const {FitAddon} = require("xterm-addon-fit");
-            const {LigaturesAddon} = require("xterm-addon-ligatures");
-            const {WebglAddon} = require("xterm-addon-webgl");
+            this.xTerm = window.Terminal;
+            const FitAddon = window.FitAddon.FitAddon;
+            const WebglAddon = window.WebglAddon.WebglAddon;
 
             this.port = opts.port || 3000;
             this.cwd = "";
@@ -24,76 +23,7 @@ class Terminal {
                 window.vindex.terminalResize(this.port, cols, rows);
             };
 
-            // Support for custom color filters on the terminal - see #483
-            let doCustomFilter = (window.isTermFilterValidated) ? true : false;
-
-            // Parse & validate color filter
-            if (window.isTermFilterValidated !== true && typeof window.theme.terminal.colorFilter === "object" && window.theme.terminal.colorFilter.length > 0) {
-                doCustomFilter = window.theme.terminal.colorFilter.every((step, i, a) => {
-                    let func = step.slice(0, step.indexOf("("));
-
-                    switch(func) {
-                        case "negate":
-                        case "grayscale":
-                            a[i] = {
-                                func,
-                                arg: []
-                            };
-                            return true;
-                        case "lighten":
-                        case "darken":
-                        case "saturate":
-                        case "desaturate":
-                        case "whiten":
-                        case "blacken":
-                        case "fade":
-                        case "opaquer":
-                        case "rotate":
-                        case "mix":
-                            break;
-                        default:
-                            return false;
-                    }
-
-                    let arg = step.slice(step.indexOf("(")+1, step.indexOf(")"));
-
-                    if (typeof Number(arg) === "number") {
-                        a[i] = {
-                            func,
-                            arg: [Number(arg)]
-                        };
-                        window.isTermFilterValidated = true;
-                        return true;
-                    }
-
-                    return false;
-                });
-            }
-
-            let color = require("color");
-            let colorify;
-            if (doCustomFilter) {
-                colorify = (base, target) => {
-                    let newColor = color(base);
-                    target = color(target);
-
-                    for (let i = 0; i < window.theme.terminal.colorFilter.length; i++) {
-                        if (window.theme.terminal.colorFilter[i].func === "mix") {
-                            newColor = newColor[window.theme.terminal.colorFilter[i].func](target, ...window.theme.terminal.colorFilter[i].arg);
-                        } else {
-                            newColor = newColor[window.theme.terminal.colorFilter[i].func](...window.theme.terminal.colorFilter[i].arg);
-                        }
-                    }
-
-                    return newColor.hex();
-                };
-            } else {
-                colorify = (base, target) => {
-                    return color(base).grayscale().mix(color(target), 0.3).hex();
-                };
-            }
-
-            let themeColor = `rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b})`;
+            let palette = window.terminalPalette || {};
 
             this.term = new this.xTerm({
                 cols: 80,
@@ -115,30 +45,28 @@ class Terminal {
                     cursor: window.theme.terminal.cursor,
                     cursorAccent: window.theme.terminal.cursorAccent,
                     selection: window.theme.terminal.selection,
-                    black: window.theme.colors.black || colorify("#2e3436", themeColor),
-                    red: window.theme.colors.red || colorify("#cc0000", themeColor),
-                    green: window.theme.colors.green || colorify("#4e9a06", themeColor),
-                    yellow: window.theme.colors.yellow || colorify("#c4a000", themeColor),
-                    blue: window.theme.colors.blue || colorify("#3465a4", themeColor),
-                    magenta: window.theme.colors.magenta || colorify("#75507b", themeColor),
-                    cyan: window.theme.colors.cyan || colorify("#06989a", themeColor),
-                    white: window.theme.colors.white || colorify("#d3d7cf", themeColor),
-                    brightBlack: window.theme.colors.brightBlack || colorify("#555753", themeColor),
-                    brightRed: window.theme.colors.brightRed || colorify("#ef2929", themeColor),
-                    brightGreen: window.theme.colors.brightGreen || colorify("#8ae234", themeColor),
-                    brightYellow: window.theme.colors.brightYellow || colorify("#fce94f", themeColor),
-                    brightBlue: window.theme.colors.brightBlue || colorify("#729fcf", themeColor),
-                    brightMagenta: window.theme.colors.brightMagenta || colorify("#ad7fa8", themeColor),
-                    brightCyan: window.theme.colors.brightCyan || colorify("#34e2e2", themeColor),
-                    brightWhite: window.theme.colors.brightWhite || colorify("#eeeeec", themeColor)
+                    black: window.theme.colors.black || palette.black,
+                    red: window.theme.colors.red || palette.red,
+                    green: window.theme.colors.green || palette.green,
+                    yellow: window.theme.colors.yellow || palette.yellow,
+                    blue: window.theme.colors.blue || palette.blue,
+                    magenta: window.theme.colors.magenta || palette.magenta,
+                    cyan: window.theme.colors.cyan || palette.cyan,
+                    white: window.theme.colors.white || palette.white,
+                    brightBlack: window.theme.colors.brightBlack || palette.brightBlack,
+                    brightRed: window.theme.colors.brightRed || palette.brightRed,
+                    brightGreen: window.theme.colors.brightGreen || palette.brightGreen,
+                    brightYellow: window.theme.colors.brightYellow || palette.brightYellow,
+                    brightBlue: window.theme.colors.brightBlue || palette.brightBlue,
+                    brightMagenta: window.theme.colors.brightMagenta || palette.brightMagenta,
+                    brightCyan: window.theme.colors.brightCyan || palette.brightCyan,
+                    brightWhite: window.theme.colors.brightWhite || palette.brightWhite
                 }
             });
             let fitAddon = new FitAddon();
             this.term.loadAddon(fitAddon);
             this.term.open(document.getElementById(opts.parentId));
             this.term.loadAddon(new WebglAddon());
-            let ligaturesAddon = new LigaturesAddon();
-            this.term.loadAddon(ligaturesAddon);
             this.term.attachCustomKeyEventHandler(e => {
                 window.keyboard.keydownHandler(e);
                 return true;
@@ -568,6 +496,8 @@ class Terminal {
     }
 }
 
-module.exports = {
-    Terminal
-};
+if (typeof module !== "undefined") {
+    module.exports = {
+        Terminal
+    };
+}
