@@ -1,8 +1,8 @@
 {
-  "name": "edex-ui",
-  "productName": "eDEX-UI",
-  "version": "2.2.8",
-  "description": "eDEX-UI sci-fi interface",
+  "name": "vindex",
+  "productName": "Vindex",
+  "version": "0.1.0",
+  "description": "A fullscreen terminal with live system monitors.",
   "keywords": [
     "desktop",
     "sci-fi",
@@ -14,14 +14,17 @@
   "main": "_boot.js",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GitSquared/edex-ui.git"
+    "url": "git+https://github.com/GeraldXtra/vindex.git"
   },
-  "author": "Gabriel 'Squared' SAILLARD <gabriel@saillard.dev> (https://gaby.dev)",
+  "author": "GeraldXtra (https://github.com/GeraldXtra)",
+  "contributors": [
+    "Gabriel 'Squared' SAILLARD <gabriel@saillard.dev> (https://gaby.dev)"
+  ],
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/GitSquared/edex-ui/issues"
+    "url": "https://github.com/GeraldXtra/vindex/issues"
   },
-  "homepage": "https://github.com/GitSquared/edex-ui#readme",
+  "homepage": "https://github.com/GeraldXtra/vindex#readme",
   "dependencies": {
     "augmented-ui": "^1.1.2",
     "color": "3.2.1",

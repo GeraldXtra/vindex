@@ -95,14 +95,14 @@ window._loadTheme = theme => {
 };
 
 function initGraphicalErrorHandling() {
-    window.edexErrorsModals = [];
+    window.vindexErrorModals = [];
     window.onerror = (msg, path, line, col, error) => {
         let errorModal = new Modal({
             type: "error",
             title: error,
             message: `${msg}<br/>        at ${path}  ${line}:${col}`
         });
-        window.edexErrorsModals.push(errorModal);
+        window.vindexErrorModals.push(errorModal);
 
         window.vindex.log("error", `${error}: ${msg}`);
         window.vindex.log("debug", `at ${path} ${line}:${col}`);
@@ -170,7 +170,7 @@ function displayLine() {
 
     switch(true) {
         case i === 2:
-            bootScreen.innerHTML += `eDEX-UI Kernel version ${window.vindex.appVersion} boot at ${Date().toString()}; root:xnu-1699.22.73~1/RELEASE_X86_64`;
+            bootScreen.innerHTML += `Vindex Kernel version ${window.vindex.appVersion} boot at ${Date().toString()}; root:xnu-1699.22.73~1/RELEASE_X86_64`;
         case i === 4:
             setTimeout(displayLine, 500);
             break;
@@ -215,7 +215,7 @@ async function displayTitleScreen() {
 
     document.body.setAttribute("class", "");
     bootScreen.setAttribute("class", "center");
-    bootScreen.innerHTML = "<h1>eDEX-UI</h1>";
+    bootScreen.innerHTML = "<h1>Vindex</h1>";
     let title = document.querySelector("section > h1");
 
     await _delay(200);
@@ -420,7 +420,7 @@ async function initUI() {
     window.onmouseup = e => {
         if (window.keyboard.linkedToTerm) window.term[window.currentTerm].term.focus();
     };
-    window.term[0].term.writeln("\033[1m"+`Welcome to eDEX-UI v${window.vindex.appVersion} - Electron v${window.vindex.electronVersion}`+"\033[0m");
+    window.term[0].term.writeln("\033[1m"+`Welcome to Vindex v${window.vindex.appVersion} - Electron v${window.vindex.electronVersion}`+"\033[0m");
 
     await _delay(100);
 
@@ -734,7 +734,7 @@ window.openSettings = async () => {
             {label: "Open in External Editor", action:`window.vindex.openSettingsFile();window.vindex.minimize();`},
             {label: "Save to Disk", action: "window.writeSettingsFile()"},
             {label: "Reload UI", action: "window.location.reload(true);"},
-            {label: "Restart eDEX", action: "window.vindex.relaunchApp();window.vindex.quitApp();"}
+            {label: "Restart Vindex", action: "window.vindex.relaunchApp();window.vindex.quitApp();"}
         ]
     }, () => {
         // Link the keyboard back to the terminal

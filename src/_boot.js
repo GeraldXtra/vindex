@@ -3,7 +3,7 @@ const {app, BrowserWindow, dialog, shell} = require("electron");
 
 process.on("uncaughtException", e => {
     signale.fatal(e);
-    dialog.showErrorBox("eDEX-UI crashed", e.message || "Cannot retrieve error message.");
+    dialog.showErrorBox("Vindex crashed", e.message || "Cannot retrieve error message.");
     if (tty) {
         tty.close();
     }
@@ -17,13 +17,13 @@ process.on("uncaughtException", e => {
     process.exit(1);
 });
 
-signale.start(`Starting eDEX-UI v${app.getVersion()}`);
+signale.start(`Starting Vindex v${app.getVersion()}`);
 signale.info(`With Node ${process.versions.node} and Electron ${process.versions.electron}`);
 signale.info(`Renderer is Chrome ${process.versions.chrome}`);
 
 const gotLock = app.requestSingleInstanceLock();
 if (!gotLock) {
-    signale.fatal("Error: Another instance of eDEX is already running. Cannot proceed.");
+    signale.fatal("Error: Another instance of Vindex is already running. Cannot proceed.");
     app.exit(1);
 }
 
@@ -640,6 +640,70 @@ try {
 } catch(e) {
     signale.info(`Base config dir is ${electron.app.getPath("userData")}`);
 }
+function readOldJSONFile(file) {
+    let content = fs.readFileSync(file, {encoding: "utf-8"});
+    if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+    return JSON.parse(content);
+}
+function isSameFolder(a, b) {
+    a = path.resolve(a);
+    b = path.resolve(b);
+    if (process.platform === "win32") return a.toLowerCase() === b.toLowerCase();
+    return a === b;
+}
+function copyOldUserData(oldDir) {
+    let newDir = electron.app.getPath("userData");
+    let copied = [];
+    let skipped = [];
+    [
+        {name: "settings.json", isValid: isPlainObject, kind: "a JSON object"},
+        {name: "shortcuts.json", isValid: Array.isArray, kind: "a JSON array"},
+        {name: "lastWindowState.json", isValid: isPlainObject, kind: "a JSON object"}
+    ].forEach(({name, isValid, kind}) => {
+        let from = path.join(oldDir, name);
+        let to = path.join(newDir, name);
+        try {
+            if (fs.existsSync(to)) return skipped.push(`${name} (already exists)`);
+            if (!fs.existsSync(from)) return skipped.push(`${name} (not found)`);
+            let value;
+            try {
+                value = readOldJSONFile(from);
+            } catch(e) {
+                return skipped.push(`${name} (not valid JSON)`);
+            }
+            if (!isValid(value)) return skipped.push(`${name} (not ${kind})`);
+            let note = "";
+            if (name === "settings.json" && typeof value.cwd === "string" && path.isAbsolute(value.cwd) && isSameFolder(value.cwd, oldDir)) {
+                value.cwd = newDir;
+                note = " (cwd set to the Vindex folder)";
+            }
+            fs.writeFileSync(to, JSON.stringify(value, "", 4), {flag: "wx"});
+            copied.push(name+note);
+        } catch(e) {
+            skipped.push(`${name} (failed: ${(e && e.message) || e})`);
+        }
+    });
+    ["themes", "keyboards", "fonts", "geoIPcache"].forEach(name => {
+        let from = path.join(oldDir, name);
+        let to = path.join(newDir, name);
+        try {
+            if (fs.existsSync(to)) return skipped.push(`${name} (already exists)`);
+            if (!fs.existsSync(from)) return skipped.push(`${name} (not found)`);
+            if (!fs.statSync(from).isDirectory()) return skipped.push(`${name} (not a folder)`);
+            fs.cpSync(from, to, {recursive: true, force: false, errorOnExist: true});
+            copied.push(name);
+        } catch(e) {
+            skipped.push(`${name} (failed: ${(e && e.message) || e})`);
+        }
+    });
+    signale.info(`Imported eDEX-UI settings from ${oldDir}: copied ${copied.join(", ") || "nothing"}; skipped ${skipped.join(", ") || "nothing"}`);
+}
+try {
+    let oldUserDataDir = path.join(app.getPath("appData"), "eDEX-UI");
+    if (!fs.existsSync(settingsFile) && fs.existsSync(oldUserDataDir)) copyOldUserData(oldUserDataDir);
+} catch(e) {
+    signale.error("Could not import the old eDEX-UI settings:", e);
+}
 // Create default settings file
 if (!fs.existsSync(settingsFile)) {
     fs.writeFileSync(settingsFile, JSON.stringify({
@@ -748,7 +812,7 @@ function createWindow(settings) {
     let {x, y, width, height} = display.bounds;
     width++; height++;
     win = new BrowserWindow({
-        title: "eDEX-UI",
+        title: "Vindex",
         x,
         y,
         width,
@@ -839,7 +903,7 @@ app.on('ready', async () => {
     Object.assign(cleanEnv, {
         TERM: "xterm-256color",
         COLORTERM: "truecolor",
-        TERM_PROGRAM: "eDEX-UI",
+        TERM_PROGRAM: "Vindex",
         TERM_PROGRAM_VERSION: app.getVersion()
     }, settings.env);
 

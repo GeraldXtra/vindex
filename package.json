@@ -1,8 +1,8 @@
 {
-  "name": "edex-ui",
-  "productName": "eDEX-UI",
-  "version": "2.2.8",
-  "description": "A science fiction desktop running everywhere. Awesome.",
+  "name": "vindex",
+  "productName": "Vindex",
+  "version": "0.1.0",
+  "description": "A fullscreen terminal with live system monitors.",
   "keywords": [
     "desktop",
     "sci-fi",
@@ -31,28 +31,31 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/GitSquared/edex-ui.git"
+    "url": "git+https://github.com/GeraldXtra/vindex.git"
   },
-  "author": "Gabriel 'Squared' SAILLARD <gabriel@saillard.dev> (https://gaby.dev)",
+  "author": "GeraldXtra (https://github.com/GeraldXtra)",
+  "contributors": [
+    "Gabriel 'Squared' SAILLARD <gabriel@saillard.dev> (https://gaby.dev)"
+  ],
   "license": "GPL-3.0",
   "bugs": {
-    "url": "https://github.com/GitSquared/edex-ui/issues"
+    "url": "https://github.com/GeraldXtra/vindex/issues"
   },
-  "homepage": "https://github.com/GitSquared/edex-ui#readme",
+  "homepage": "https://github.com/GeraldXtra/vindex#readme",
   "build": {
-    "appId": "com.edex.ui",
-    "productName": "eDEX-UI",
+    "appId": "io.github.geraldxtra.vindex",
+    "productName": "Vindex",
     "publish": "github",
     "asar": true,
     "compression": "normal",
-    "copyright": "Copyright © 2017-2021 Gabriel 'Squared' SAILLARD <gabriel@saillard.dev> (https://gaby.dev)",
+    "copyright": "Copyright © 2017-2021 Gabriel 'Squared' SAILLARD <gabriel@saillard.dev> (https://gaby.dev), Copyright © 2026 GeraldXtra",
     "directories": {
       "output": "dist",
       "app": "prebuild-src"
     },
     "forceCodeSigning": false,
     "npmRebuild": false,
-    "artifactName": "eDEX-UI-${os}-${arch}.${ext}",
+    "artifactName": "Vindex-${os}-${arch}.${ext}",
     "linux": {
       "target": [
         "AppImage"
@@ -61,7 +64,7 @@
       "icon": "media/linuxIcons"
     },
     "appImage": {
-      "artifactName": "eDEX-UI-Linux-${arch}.AppImage"
+      "artifactName": "Vindex-Linux-${arch}.AppImage"
     },
     "mac": {
       "target": [
@@ -76,7 +79,7 @@
       "icon": "media/icon.icns"
     },
     "dmg": {
-      "artifactName": "eDEX-UI-macOS-${arch}.dmg"
+      "artifactName": "Vindex-macOS-${arch}.dmg"
     },
     "win": {
       "target": [
@@ -90,7 +93,7 @@
       "icon": "media/icon.ico"
     },
     "nsis": {
-      "artifactName": "eDEX-UI-Windows-${arch}.exe",
+      "artifactName": "Vindex-Windows-${arch}.exe",
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "deleteAppDataOnUninstall": true
