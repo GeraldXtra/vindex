@@ -19,6 +19,8 @@ if (cluster.isPrimary) {
     const maxRestarts = 3;
     const workers = new Map();
     const restarts = new Map();
+    const workerStarts = [];
+    const workerStartListeners = [];
     var quitting = false;
 
     electron.app.on("before-quit", () => {
@@ -29,10 +31,23 @@ if (cluster.isPrimary) {
         return jobCalls.get(type) || "general";
     }
 
+    function notifyWorkerStart(listener, start) {
+        try {
+            listener(start.job, start.pid);
+        } catch(err) {
+            signale.error(`Could not report the start of the ${start.job} worker:`, err);
+        }
+    }
+
     function startWorker(job) {
         let worker = cluster.fork({SI_WORKER_JOB: job});
         workers.set(job, worker);
 
+        worker.on("online", () => {
+            let start = {job, pid: worker.process.pid};
+            workerStarts.push(start);
+            workerStartListeners.forEach(listener => notifyWorkerStart(listener, start));
+        });
         worker.on("error", err => {
             signale.error(`Multithread worker (${job}) error:`, err);
         });
@@ -148,7 +163,12 @@ if (cluster.isPrimary) {
         return promise;
     }
 
-    module.exports = isAllowedSender => {
+    module.exports = (isAllowedSender, onWorkerOnline) => {
+        if (typeof onWorkerOnline === "function") {
+            workerStarts.forEach(start => notifyWorkerStart(onWorkerOnline, start));
+            workerStartListeners.push(onWorkerOnline);
+        }
+
         ipc.handle("systeminformation-call", (e, type, ...args) => {
             try {
                 if (!isAllowedSender(e) || !isAllowedCall(type, args)) {

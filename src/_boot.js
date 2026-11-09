@@ -46,6 +46,41 @@ onWindowMessage("log", args => args.length === 2 && logLevels.includes(args[0]) 
 });
 
 var win, tty, extraTtys;
+const bootEvents = [];
+const bootStatuses = ["ok", "info", "warn", "fail"];
+let lastBootSeq = 0;
+
+function bootEvent(tag, message, status) {
+    try {
+        let event = {
+            seq: ++lastBootSeq,
+            t: Math.round(process.uptime() * 1000),
+            tag: String(tag),
+            message: String(message).slice(0, 200),
+            status: bootStatuses.includes(status) ? status : "ok"
+        };
+        bootEvents.push(event);
+        if (bootEvents.length > 300) bootEvents.shift();
+        sendToWindow("boot-event", event);
+    } catch(err) {
+        signale.error("Could not record a boot event:", err);
+    }
+}
+
+function osLabel() {
+    if (process.platform === "win32") {
+        let build = Number(os.release().split(".")[2]);
+        return `${(build >= 22000) ? "Windows 11" : "Windows 10"} build ${build}`;
+    }
+    if (process.platform === "darwin") return `macOS (Darwin ${os.release()})`;
+    return `${os.type()} ${os.release()}`;
+}
+
+bootEvent("MAIN", `Starting Vindex ${app.getVersion()}`);
+bootEvent("MAIN", `Electron ${process.versions.electron} · Node ${process.versions.node} · Chromium ${process.versions.chrome.split(".")[0]}`);
+bootEvent("MAIN", `${osLabel()} · ${process.arch}`);
+bootEvent("MAIN", "Single instance lock acquired");
+
 const settingsFile = path.join(electron.app.getPath("userData"), "settings.json");
 const shortcutsFile = path.join(electron.app.getPath("userData"), "shortcuts.json");
 const lastWindowStateFile = path.join(electron.app.getPath("userData"), "lastWindowState.json");
@@ -441,6 +476,7 @@ handleWindowRequest("clipboard-write-text", args => args.length === 1 && typeof 
     await electron.clipboard.writeText(text);
     return true;
 }, false);
+bootEvent("SECURITY", "Clipboard writes limited to 10 MB");
 handleWindowRequest("screen-display-count", hasNoArgs, () => electron.screen.getAllDisplays().length, 0);
 onWindowMessage("shell-open-path", args => args.length === 1 && typeof args[0] === "string", (e, target) => {
     openFile(target);
@@ -493,8 +529,7 @@ handleWindowRequest("theme-read", args => args.length === 1 && isSafeFileName(ar
 handleWindowRequest("theme-list", hasNoArgs, () => listJSONNames(themesDir), []);
 handleWindowRequest("keyboard-read", args => args.length === 1 && isSafeFileName(args[0]), (e, name) => readJSONFile(path.join(kblayoutsDir, name+".json")), null);
 handleWindowRequest("keyboard-list", hasNoArgs, () => listJSONNames(kblayoutsDir), []);
-handleWindowRequest("boot-log-read", hasNoArgs, () => fs.promises.readFile(path.join(__dirname, "assets", "misc", "boot_log.txt"), {encoding: "utf-8"}), "");
-handleWindowRequest("os-is-arch", hasNoArgs, () => process.platform === "linux" && fs.existsSync("/etc/os-release") && fs.readFileSync("/etc/os-release").toString().includes("arch"), false);
+handleWindowRequest("boot-events-read", hasNoArgs, () => ({now: Math.round(process.uptime() * 1000), events: bootEvents.slice()}), {now: 0, events: []});
 handleWindowRequest("os-uptime", hasNoArgs, () => os.uptime(), 0);
 handleWindowRequest("os-username", hasNoArgs, async () => (await require("username")()) || null, null);
 handleWindowRequest("assets-file-icons", hasNoArgs, () => require("./assets/icons/file-icons.json"), null);
@@ -640,6 +675,7 @@ try {
 } catch(e) {
     signale.info(`Base config dir is ${electron.app.getPath("userData")}`);
 }
+bootEvent("CONFIG", `Config folder ${electron.app.getPath("userData")}`);
 function readOldJSONFile(file) {
     let content = fs.readFileSync(file, {encoding: "utf-8"});
     if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
@@ -697,6 +733,7 @@ function copyOldUserData(oldDir) {
         }
     });
     signale.info(`Imported eDEX-UI settings from ${oldDir}: copied ${copied.join(", ") || "nothing"}; skipped ${skipped.join(", ") || "nothing"}`);
+    if (copied.length > 0) bootEvent("CONFIG", `Imported eDEX-UI settings · ${copied.length} items`, "info");
 }
 try {
     let oldUserDataDir = path.join(app.getPath("appData"), "eDEX-UI");
@@ -800,6 +837,43 @@ if (typeof versionHistory[version] === "undefined") {
 }
 fs.writeFileSync(versionHistoryPath, JSON.stringify(versionHistory, 0, 2), {encoding:"utf-8"});
 
+function reportWindow(display) {
+    try {
+        let rate = display.displayFrequency;
+        let hz = (typeof rate === "number" && rate > 0) ? ` · ${Math.round(rate)} Hz` : "";
+        bootEvent("WINDOW", `Window ${display.bounds.width} × ${display.bounds.height}${hz}`);
+        let prefs = win.webContents.getLastWebPreferences() || {};
+        bootEvent("SECURITY", prefs.sandbox ? "Renderer sandbox on" : "Renderer sandbox off", prefs.sandbox ? "ok" : "fail");
+        bootEvent("SECURITY", prefs.contextIsolation ? "Context isolation on" : "Context isolation off", prefs.contextIsolation ? "ok" : "fail");
+        bootEvent("SECURITY", prefs.nodeIntegration ? "Node integration on" : "Node integration off", prefs.nodeIntegration ? "fail" : "ok");
+        reportGPU();
+    } catch(err) {
+        signale.error("Could not report the window setup:", err);
+    }
+}
+
+function isGPUCompositing() {
+    let compositing = app.getGPUFeatureStatus().gpu_compositing;
+    return typeof compositing === "string" && compositing.startsWith("enabled");
+}
+
+function reportGPU() {
+    let reported = false;
+    let report = () => {
+        if (reported) return;
+        reported = true;
+        try {
+            let accelerated = isGPUCompositing();
+            bootEvent("GPU", accelerated ? "Hardware acceleration on" : "Hardware acceleration off", accelerated ? "ok" : "warn");
+        } catch(err) {
+            signale.error("Could not read the GPU status:", err);
+        }
+    };
+    if (isGPUCompositing()) return report();
+    app.once("gpu-info-update", report);
+    setTimeout(report, 5000);
+}
+
 function createWindow(settings) {
     signale.info("Creating window...");
 
@@ -843,6 +917,7 @@ function createWindow(settings) {
             ]
         }
     });
+    reportWindow(display);
 
     let shortcuts = [];
     win.webContents.on("dom-ready", () => {
@@ -872,6 +947,10 @@ function createWindow(settings) {
         closeDirWatcher();
     }));
 
+    win.webContents.once("did-finish-load", () => {
+        bootEvent("WINDOW", "Page loaded");
+    });
+    bootEvent("WINDOW", "Loading ui.html");
     win.loadFile(path.join(__dirname, "ui.html")).catch(err => {
         signale.error("Could not load the window page:", err);
     });
@@ -890,9 +969,11 @@ function createWindow(settings) {
 app.on('ready', async () => {
     signale.pending(`Loading settings file...`);
     let settings = require(settingsFile);
+    bootEvent("CONFIG", "settings.json loaded");
     signale.pending(`Resolving shell path...`);
     settings.shell = await which(settings.shell).catch(e => { throw(e) });
     signale.info(`Shell found at ${settings.shell}`);
+    bootEvent("PTY", `Shell ${path.basename(settings.shell)} found`);
     signale.success(`Settings loaded!`);
 
     if (!require("fs").existsSync(settings.cwd)) throw new Error("Configured cwd path does not exist.");
@@ -917,6 +998,7 @@ app.on('ready', async () => {
         port: settings.port || 3000,
         isAllowedSender: isMainWindowPage
     });
+    if (tty.tty && tty.tty.pid) bootEvent("PTY", `Shell started · PID ${tty.tty.pid}`);
     signale.success(`Terminal back-end initialized!`);
     tty.onclosed = (code, signal) => {
         tty.ondisconnected = () => {};
@@ -937,7 +1019,10 @@ app.on('ready', async () => {
 
     // Support for multithreaded systeminformation calls
     signale.pending("Starting multithreaded calls controller...");
-    require("./_multithread.js")(isMainWindowPage);
+    bootEvent("WORKER", "Starting 3 system workers");
+    require("./_multithread.js")(isMainWindowPage, (job, pid) => {
+        bootEvent("WORKER", `${job} worker up · PID ${pid}`);
+    });
 
     createWindow(settings);
 
@@ -1016,6 +1101,7 @@ app.on('ready', async () => {
     });
 });
 
+let reportedContentsRules = false;
 app.on('web-contents-created', (e, contents) => {
     // Prevent creating more than one window
     contents.setWindowOpenHandler(details => {
@@ -1037,6 +1123,12 @@ app.on('web-contents-created', (e, contents) => {
     contents.on("will-navigate", e => {
         if (e.url !== contents.getURL()) e.preventDefault();
     });
+
+    if (!reportedContentsRules) {
+        reportedContentsRules = true;
+        bootEvent("SECURITY", "New windows blocked · navigation locked");
+        bootEvent("SECURITY", "Only https links open in your browser");
+    }
 });
 
 app.on('window-all-closed', () => {

@@ -191,11 +191,11 @@ const vindex = Object.freeze({
     listKeyboardLayouts: () => {
         return ipcRenderer.invoke("keyboard-list");
     },
-    readBootLog: () => {
-        return ipcRenderer.invoke("boot-log-read");
+    getBootEvents: () => {
+        return ipcRenderer.invoke("boot-events-read");
     },
-    isArchLinux: () => {
-        return ipcRenderer.invoke("os-is-arch");
+    onBootEvent: callback => {
+        return listen("boot-event", callback);
     },
     getSystemUptime: () => {
         return ipcRenderer.invoke("os-uptime");

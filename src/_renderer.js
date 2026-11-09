@@ -146,114 +146,6 @@ function initSystemInformationProxy() {
     });
 }
 
-let i = 0;
-let bootLog = [];
-let isArchUser = false;
-
-// Startup boot log
-function displayLine() {
-    let bootScreen = document.getElementById("boot_screen");
-    let log = bootLog;
-
-    if (typeof log[i] === "undefined") {
-        setTimeout(displayTitleScreen, 300);
-        return;
-    }
-
-    if (log[i] === "Boot Complete") {
-        window.audioManager.granted.play();
-    } else {
-        window.audioManager.stdout.play();
-    }
-    bootScreen.innerHTML += log[i]+"<br/>";
-    i++;
-
-    switch(true) {
-        case i === 2:
-            bootScreen.innerHTML += `Vindex Kernel version ${window.vindex.appVersion} boot at ${Date().toString()}; root:xnu-1699.22.73~1/RELEASE_X86_64`;
-        case i === 4:
-            setTimeout(displayLine, 500);
-            break;
-        case i > 4 && i < 25:
-            setTimeout(displayLine, 30);
-            break;
-        case i === 25:
-            setTimeout(displayLine, 400);
-            break;
-        case i === 42:
-            setTimeout(displayLine, 300);
-            break;
-        case i > 42 && i < 82:
-            setTimeout(displayLine, 25);
-            break;
-        case i === 83:
-            if (isArchUser)
-                bootScreen.innerHTML += "btw i use arch<br/>";
-            setTimeout(displayLine, 25);
-            break;
-        case i >= log.length-2 && i < log.length:
-            setTimeout(displayLine, 300);
-            break;
-        default:
-            setTimeout(displayLine, Math.pow(1 - (i/1000), 3)*25);
-    }
-}
-
-// Show "logo" and background grid
-async function displayTitleScreen() {
-    let bootScreen = document.getElementById("boot_screen");
-    if (bootScreen === null) {
-        bootScreen = document.createElement("section");
-        bootScreen.setAttribute("id", "boot_screen");
-        bootScreen.setAttribute("style", "z-index: 9999999");
-        document.body.appendChild(bootScreen);
-    }
-    bootScreen.innerHTML = "";
-    window.audioManager.theme.play();
-
-    await _delay(400);
-
-    document.body.setAttribute("class", "");
-    bootScreen.setAttribute("class", "center");
-    bootScreen.innerHTML = "<h1>Vindex</h1>";
-    let title = document.querySelector("section > h1");
-
-    await _delay(200);
-
-    document.body.setAttribute("class", "solidBackground");
-
-    await _delay(100);
-
-    title.setAttribute("style", `background-color: rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b});border-bottom: 5px solid rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b});`);
-
-    await _delay(300);
-
-    title.setAttribute("style", `border: 5px solid rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b});`);
-
-    await _delay(100);
-
-    title.setAttribute("style", "");
-    title.setAttribute("class", "glitch");
-
-    await _delay(500);
-
-    document.body.setAttribute("class", "");
-    title.setAttribute("class", "");
-    title.setAttribute("style", `border: 5px solid rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b});`);
-
-    await _delay(1000);
-    if (window.term) {
-        bootScreen.remove();
-        return true;
-    }
-    initGraphicalErrorHandling();
-    initSystemInformationProxy();
-    waitForFonts().then(() => {
-        bootScreen.remove();
-        initUI();
-    });
-}
-
 // Returns the user's desired display name
 async function getDisplayName() {
     let user = settings.username || null;
@@ -1089,9 +981,6 @@ async function startup() {
             window.settings.nointroOverride = true;
         }
 
-        bootLog = (await window.vindex.readBootLog()).split("\n");
-        isArchUser = await window.vindex.isArchLinux();
-
         window.audioManager = new AudioManager();
         window.vindex.focusApp();
 
@@ -1102,7 +991,11 @@ async function startup() {
             document.body.setAttribute("class", "");
             waitForFonts().then(initUI);
         } else {
-            displayLine();
+            initSystemInformationProxy();
+            await new BootScreen({container: document.getElementById("boot_screen"), settings: window.settings}).run();
+            initGraphicalErrorHandling();
+            document.body.setAttribute("class", "");
+            waitForFonts().then(initUI);
         }
     } catch(error) {
         let bootScreen = document.getElementById("boot_screen");

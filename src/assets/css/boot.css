@@ -1,0 +1,727 @@
+section#boot_screen {
+    --eo: cubic-bezier(0.22, 1, 0.36, 1);
+    --ei: cubic-bezier(0.65, 0, 0.35, 1);
+    --ein: cubic-bezier(0.55, 0, 1, 0.45);
+    --vx-s: 1;
+    --vx-x: 0px;
+    --vx-y: 0px;
+    position: fixed;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    z-index: 9999999;
+    background: #0F1113;
+    color: #E6E8EA;
+    font-family: 'Barlow Semi Condensed', 'Segoe UI', sans-serif;
+    font-size: 12px;
+    line-height: 16px;
+    text-align: left;
+}
+
+section#boot_screen.vx-leaving {
+    animation: vx-fade-out 500ms linear forwards;
+}
+
+#boot_screen .vx-rain {
+    position: absolute;
+    left: 0;
+    top: 0;
+    overflow: hidden;
+    transform-origin: 0 0;
+    transform: scale(var(--vx-s));
+    animation: vx-fade 900ms linear 100ms both;
+}
+
+#boot_screen .vx-col {
+    position: absolute;
+    width: 0.62em;
+    font-family: Doto, 'JetBrains Mono', monospace;
+    font-weight: 900;
+    line-height: 1.12em;
+    word-break: break-all;
+    color: hsl(var(--hue) 88% 62% / var(--alpha));
+    animation: vx-rain var(--fall) linear var(--fall-delay) infinite;
+}
+
+#boot_screen .vx-col > span {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 0.62em;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 78%);
+    mask-image: linear-gradient(to bottom, transparent 0%, #000 78%);
+}
+
+#boot_screen .vx-col > .vx-flick-a {
+    animation: vx-flick-a var(--flick) steps(1, end) var(--flick-delay) infinite;
+}
+
+#boot_screen .vx-col > .vx-flick-b {
+    animation: vx-flick-b var(--flick) steps(1, end) var(--flick-delay) infinite;
+}
+
+#boot_screen .vx-head {
+    color: hsl(var(--hue) 88% 92% / 0.95);
+    text-shadow: 0 0 10px hsl(var(--hue) 88% 62% / 0.9);
+}
+
+#boot_screen .vx-streak {
+    position: absolute;
+    top: -180px;
+    width: 2px;
+    height: 180px;
+    background: linear-gradient(to bottom, transparent, hsl(var(--hue) 88% 62% / 0.8));
+    animation: vx-streak var(--fall) linear var(--fall-delay) infinite;
+}
+
+#boot_screen .vx-dim-left {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(to right, #0F11139e 0px, #0F11139e calc(var(--vx-x) + 660px * var(--vx-s)), transparent calc(var(--vx-x) + 960px * var(--vx-s)));
+}
+
+#boot_screen .vx-dim-left.vx-out {
+    animation: vx-fade-out 500ms linear forwards;
+}
+
+#boot_screen .vx-stage {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1366px;
+    height: 768px;
+    overflow: hidden;
+    transform-origin: 0 0;
+    transform: translate(var(--vx-x), var(--vx-y)) scale(var(--vx-s));
+}
+
+#boot_screen .vx-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1366px;
+    height: 768px;
+}
+
+#boot_screen .vx-dim-title {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1366px;
+    height: 768px;
+    background: radial-gradient(500px 250px at 683px 352px, #0F1113e6 0%, transparent 100%);
+    opacity: 0;
+    animation: vx-fade 600ms linear 100ms both;
+}
+
+#boot_screen .vx-act1 {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1366px;
+    height: 768px;
+    transform-origin: 683px 384px;
+}
+
+#boot_screen .vx-act1.vx-collapse {
+    animation: vx-crt 260ms var(--ein) both;
+}
+
+#boot_screen .vx-head-left {
+    position: absolute;
+    left: 48px;
+    top: 32px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    white-space: nowrap;
+    animation: vx-fade 400ms linear 150ms both;
+}
+
+#boot_screen .vx-head-left > svg {
+    display: block;
+    flex: 0 0 auto;
+}
+
+#boot_screen .vx-brand {
+    font-family: Doto, 'JetBrains Mono', monospace;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    color: #A3AAB2;
+}
+
+#boot_screen .vx-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: #838B94;
+}
+
+#boot_screen .vx-version {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #838B94;
+}
+
+#boot_screen .vx-head-right {
+    position: absolute;
+    right: 48px;
+    top: 32px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    white-space: nowrap;
+    animation: vx-fade 400ms linear 200ms both;
+}
+
+#boot_screen .vx-counter-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: #838B94;
+}
+
+#boot_screen .vx-counter {
+    text-align: right;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: #A3AAB2;
+}
+
+#boot_screen .vx-counter-lines {
+    min-width: 16px;
+}
+
+#boot_screen .vx-counter-ms {
+    min-width: 44px;
+}
+
+#boot_screen .vx-counter-gap {
+    width: 8px;
+}
+
+#boot_screen .vx-hairline {
+    position: absolute;
+    left: 48px;
+    top: 56px;
+    width: 1270px;
+    height: 1px;
+    background: #252A30;
+    transform-origin: 0 0;
+    animation: vx-grow-x 800ms var(--eo) 120ms both;
+}
+
+#boot_screen .vx-log {
+    position: absolute;
+    left: 48px;
+    top: 72px;
+    width: 1270px;
+    height: 640px;
+    overflow: hidden;
+    -webkit-mask-image: linear-gradient(to bottom, transparent 0px, #000 120px);
+    mask-image: linear-gradient(to bottom, transparent 0px, #000 120px);
+}
+
+#boot_screen .vx-log-list {
+    position: absolute;
+    left: 0;
+    top: 624px;
+    width: 1270px;
+    transition: transform 40ms var(--eo);
+}
+
+#boot_screen .vx-line {
+    position: absolute;
+    left: 0;
+    width: 1270px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    line-height: 16px;
+    white-space: pre;
+    animation: vx-line 160ms var(--eo) both;
+}
+
+#boot_screen .vx-line-time {
+    width: 60px;
+    flex: 0 0 auto;
+    color: #838B94;
+}
+
+#boot_screen .vx-line-tag {
+    width: 60px;
+    flex: 0 0 auto;
+    color: #3FD5C3;
+}
+
+#boot_screen .vx-line-msg {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: #A3AAB2;
+}
+
+#boot_screen .vx-line-status {
+    width: 56px;
+    flex: 0 0 auto;
+    text-align: right;
+    color: #838B94;
+}
+
+#boot_screen .vx-newest .vx-line-msg {
+    color: #E6E8EA;
+}
+
+#boot_screen .vx-fail .vx-line-tag,
+#boot_screen .vx-fail .vx-line-msg {
+    color: #FF7A85;
+}
+
+#boot_screen .vx-status-ok {
+    color: #3FD5C3;
+}
+
+#boot_screen .vx-status-info {
+    color: #A3AAB2;
+}
+
+#boot_screen .vx-status-warn {
+    color: #F2C14E;
+}
+
+#boot_screen .vx-status-fail {
+    color: #FF7A85;
+}
+
+#boot_screen .vx-status-pending {
+    color: #838B94;
+}
+
+#boot_screen .vx-crt-line {
+    position: absolute;
+    left: 48px;
+    top: 383px;
+    width: 1270px;
+    height: 2px;
+    background: #3FD5C3;
+    box-shadow: 0 0 14px #3FD5C3;
+    opacity: 0;
+    animation: vx-crt-line 480ms var(--ei) 180ms both;
+}
+
+#boot_screen .vx-glow {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1366px;
+    height: 768px;
+    background: radial-gradient(560px 320px at 683px 352px, #3FD5C329 0%, transparent 100%);
+    opacity: 0;
+    animation: vx-tglow 2900ms linear 330ms both;
+}
+
+#boot_screen .vx-bar {
+    position: absolute;
+    left: 419px;
+    width: 528px;
+    height: 2px;
+    background: #3FD5C3;
+    transform-origin: 50% 50%;
+}
+
+#boot_screen .vx-bar-bottom {
+    top: 422px;
+    animation: vx-grow-x 360ms var(--eo) 380ms both, vx-shrink-x 280ms var(--ei) 2660ms forwards;
+}
+
+#boot_screen .vx-bar-top {
+    top: 280px;
+    animation: vx-grow-x 180ms var(--eo) 1560ms both, vx-shrink-x 280ms var(--ei) 2660ms forwards;
+}
+
+#boot_screen .vx-bar-side {
+    position: absolute;
+    top: 280px;
+    width: 2px;
+    height: 144px;
+    transform-origin: 50% 50%;
+    animation: vx-shrink-y 280ms var(--ei) 2660ms forwards;
+}
+
+#boot_screen .vx-bar-left {
+    left: 419px;
+}
+
+#boot_screen .vx-bar-right {
+    left: 945px;
+}
+
+#boot_screen .vx-bar-side > span {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 2px;
+    height: 144px;
+    background: #3FD5C3;
+    transform-origin: 50% 100%;
+    animation: vx-grow-y 180ms var(--eo) 1380ms both;
+}
+
+#boot_screen .vx-corner {
+    position: absolute;
+    background: #3FD5C3;
+    animation: vx-fade 220ms linear 2660ms both;
+}
+
+#boot_screen .vx-subtitle {
+    position: absolute;
+    left: 0;
+    top: 456px;
+    width: 1366px;
+    text-align: center;
+    padding-left: 0.32em;
+    box-sizing: border-box;
+    font-size: 11px;
+    line-height: 14px;
+    font-weight: 600;
+    letter-spacing: 0.32em;
+    color: #838B94;
+    white-space: nowrap;
+    animation: vx-rise 420ms var(--eo) 2760ms both;
+}
+
+#boot_screen .vx-title-version {
+    position: absolute;
+    left: 0;
+    top: 478px;
+    width: 1366px;
+    text-align: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 14px;
+    color: #838B94;
+    white-space: nowrap;
+    animation: vx-fade 420ms linear 2840ms both;
+}
+
+#boot_screen .vx-logo {
+    position: absolute;
+    left: 467px;
+    top: 316px;
+    width: 72px;
+    height: 72px;
+    transform-origin: 0 0;
+}
+
+#boot_screen .vx-logo > svg {
+    position: absolute;
+    left: 0;
+    top: 0;
+    display: block;
+    overflow: visible;
+}
+
+#boot_screen .vx-logo-frame {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: vx-draw 380ms var(--eo) 430ms both;
+}
+
+#boot_screen .vx-logo-chevron {
+    stroke-dasharray: 1;
+    stroke-dashoffset: 1;
+    animation: vx-draw 240ms var(--eo) 730ms both;
+}
+
+#boot_screen .vx-logo-cursor {
+    opacity: 0;
+    animation: vx-cursor 700ms steps(1, end) 930ms both;
+}
+
+#boot_screen .vx-dot {
+    position: absolute;
+    width: 7.56px;
+    height: 7.56px;
+    background: #E6E8EA;
+    opacity: 0;
+    animation: vx-dot 460ms cubic-bezier(0.5, 0, 0.9, 0.5) var(--delay) both, vx-fade-out 140ms linear 1680ms forwards;
+}
+
+#boot_screen .vx-dot-trail {
+    position: absolute;
+    left: 0;
+    bottom: 100%;
+    width: 7.56px;
+    height: 40px;
+    background: linear-gradient(to bottom, transparent, #3FD5C38c);
+    opacity: 0;
+    animation: vx-trail 460ms linear var(--delay) both;
+}
+
+#boot_screen .vx-wordmark {
+    position: absolute;
+    left: 571px;
+    top: 300.308px;
+    margin: 0;
+    font-family: Doto, 'JetBrains Mono', monospace;
+    font-size: 84px;
+    line-height: 103.3846px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    white-space: nowrap;
+    transform-origin: 0 0;
+    color: #E6E8EA;
+}
+
+#boot_screen h1.vx-wordmark {
+    animation: vx-fade 140ms linear 1680ms both, vx-jit 140ms steps(1, end) 2260ms, vx-jit 120ms steps(1, end) 2460ms;
+}
+
+#boot_screen .vx-flash {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 1366px;
+    height: 768px;
+    background: #3FD5C3;
+    animation: vx-flash 480ms linear 1780ms both;
+}
+
+#boot_screen .vx-flash > svg {
+    position: absolute;
+    left: 467px;
+    top: 316px;
+    display: block;
+}
+
+#boot_screen .vx-flash > .vx-wordmark {
+    color: #06110F;
+}
+
+#boot_screen .vx-tear-a {
+    color: #3FD5C3;
+    clip-path: inset(0px -24px 61px -24px);
+    opacity: 0;
+    animation: vx-tear-a 140ms steps(1, end) 2260ms both, vx-tear-a 120ms steps(1, end) 2460ms forwards;
+}
+
+#boot_screen .vx-tear-b {
+    color: #3FD5C3;
+    clip-path: inset(42px -24px 41px -24px);
+    opacity: 0;
+    animation: vx-tear-b 140ms steps(1, end) 2260ms both, vx-tear-b 120ms steps(1, end) 2460ms forwards;
+}
+
+#boot_screen .vx-tear-c {
+    color: #3FD5C3;
+    clip-path: inset(62px -24px 0px -24px);
+    opacity: 0;
+    animation: vx-tear-c 140ms steps(1, end) 2260ms both, vx-tear-c 120ms steps(1, end) 2460ms forwards;
+}
+
+#boot_screen .vx-ghost-r {
+    color: #FF7A85;
+    clip-path: none;
+    opacity: 0;
+    animation: vx-ghost-r 140ms steps(1, end) 2260ms both, vx-ghost-r 120ms steps(1, end) 2460ms forwards;
+}
+
+#boot_screen .vx-ghost-a {
+    color: #3FD5C3;
+    clip-path: none;
+    opacity: 0;
+    animation: vx-ghost-a 140ms steps(1, end) 2260ms both, vx-ghost-a 120ms steps(1, end) 2460ms forwards;
+}
+
+@keyframes vx-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes vx-fade-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes vx-rise {
+    from { opacity: 0; transform: translateY(8px); }
+    to { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes vx-line {
+    from { opacity: 0; transform: translateX(-6px); }
+    to { opacity: 1; transform: translateX(0px); }
+}
+
+@keyframes vx-grow-x {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes vx-grow-y {
+    from { transform: scaleY(0); }
+    to { transform: scaleY(1); }
+}
+
+@keyframes vx-shrink-x {
+    from { transform: scaleX(1); }
+    to { transform: scaleX(0); }
+}
+
+@keyframes vx-shrink-y {
+    from { transform: scaleY(1); }
+    to { transform: scaleY(0); }
+}
+
+@keyframes vx-rain {
+    from { transform: translateY(0px); }
+    to { transform: translateY(var(--d)); }
+}
+
+@keyframes vx-flick-a {
+    0% { opacity: 1; }
+    50% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes vx-flick-b {
+    0% { opacity: 0; }
+    50% { opacity: 1; }
+    100% { opacity: 1; }
+}
+
+@keyframes vx-streak {
+    0% { transform: translateY(0px); }
+    35% { transform: translateY(var(--d)); }
+    100% { transform: translateY(var(--d)); }
+}
+
+@keyframes vx-draw {
+    from { stroke-dashoffset: 1; }
+    to { stroke-dashoffset: 0; }
+}
+
+@keyframes vx-cursor {
+    0% { opacity: 0; }
+    20% { opacity: 1; }
+    40% { opacity: 0; }
+    60% { opacity: 1; }
+    80% { opacity: 0; }
+    100% { opacity: 1; }
+}
+
+@keyframes vx-dot {
+    0% { opacity: 0; transform: translateY(var(--h)); }
+    8% { opacity: 1; }
+    82% { opacity: 1; transform: translateY(0px); animation-timing-function: ease-out; }
+    91% { transform: translateY(-3px); animation-timing-function: ease-in; }
+    100% { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes vx-trail {
+    0% { opacity: 0; }
+    10% { opacity: 1; }
+    76% { opacity: 1; }
+    88% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes vx-crt {
+    0% { opacity: 1; transform: scaleY(1); }
+    85% { opacity: 1; transform: scaleY(0.006); }
+    100% { opacity: 0; transform: scaleY(0.006); }
+}
+
+@keyframes vx-crt-line {
+    0% { opacity: 0; transform: scaleX(1); }
+    12% { opacity: 1; transform: scaleX(1); }
+    100% { opacity: 0; transform: scaleX(0); }
+}
+
+@keyframes vx-jit {
+    0% { transform: translateX(0px); }
+    25% { transform: translateX(3px); }
+    50% { transform: translateX(-2px); }
+    75% { transform: translateX(1px); }
+    100% { transform: translateX(0px); }
+}
+
+@keyframes vx-ghost-r {
+    0% { opacity: 0; transform: translateX(0px); }
+    1% { opacity: 0.45; transform: translateX(3px); }
+    50% { opacity: 0; transform: translateX(3px); }
+    51% { opacity: 0.45; transform: translateX(-2px); }
+    99% { opacity: 0.45; transform: translateX(-2px); }
+    100% { opacity: 0; transform: translateX(0px); }
+}
+
+@keyframes vx-ghost-a {
+    0% { opacity: 0; transform: translateX(0px); }
+    1% { opacity: 0.45; transform: translateX(-3px); }
+    50% { opacity: 0; transform: translateX(-3px); }
+    51% { opacity: 0.45; transform: translateX(2px); }
+    99% { opacity: 0.45; transform: translateX(2px); }
+    100% { opacity: 0; transform: translateX(0px); }
+}
+
+@keyframes vx-tglow {
+    0% { opacity: 0; }
+    18.966% { opacity: 0.5; }
+    50% { opacity: 0.5; }
+    55.517% { opacity: 1; }
+    67.241% { opacity: 0.55; }
+    91.379% { opacity: 0.55; }
+    98.276% { opacity: 0; }
+    100% { opacity: 0; }
+}
+
+@keyframes vx-tear-a {
+    0% { opacity: 0; transform: translateX(0px); }
+    1% { opacity: 0.9; transform: translateX(-10px); }
+    26% { opacity: 0.9; transform: translateX(6px); }
+    51% { opacity: 0.9; transform: translateX(-4px); }
+    76% { opacity: 0.9; transform: translateX(9px); }
+    99% { opacity: 0.9; transform: translateX(0px); }
+    100% { opacity: 0; transform: translateX(0px); }
+}
+
+@keyframes vx-tear-b {
+    0% { opacity: 0; transform: translateX(0px); }
+    1% { opacity: 0.9; transform: translateX(8px); }
+    26% { opacity: 0.9; transform: translateX(-6px); }
+    51% { opacity: 0.9; transform: translateX(3px); }
+    76% { opacity: 0.9; transform: translateX(-9px); }
+    99% { opacity: 0.9; transform: translateX(0px); }
+    100% { opacity: 0; transform: translateX(0px); }
+}
+
+@keyframes vx-tear-c {
+    0% { opacity: 0; transform: translateX(0px); }
+    1% { opacity: 0.9; transform: translateX(-5px); }
+    26% { opacity: 0.9; transform: translateX(10px); }
+    51% { opacity: 0.9; transform: translateX(-7px); }
+    76% { opacity: 0.9; transform: translateX(4px); }
+    99% { opacity: 0.9; transform: translateX(0px); }
+    100% { opacity: 0; transform: translateX(0px); }
+}
+
+@keyframes vx-flash {
+    0% { clip-path: inset(280px 947px 344px 419px); animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+    37.5% { clip-path: inset(280px 419px 344px 419px); }
+    62.5% { clip-path: inset(280px 419px 344px 419px); animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
+    100% { clip-path: inset(280px 419px 344px 947px); }
+}
