@@ -31,7 +31,11 @@ window._delay = ms => {
 
 // Initiate basic error handling
 window.onerror = (msg, path, line, col, error) => {
-    document.getElementById("boot_screen").innerHTML += `${error} :  ${msg}<br/>==> at ${path}  ${line}:${col}`;
+    let bootScreen = document.getElementById("boot_screen");
+    if (!bootScreen) return;
+    let entry = document.createElement("div");
+    entry.textContent = error + " : " + msg + " ==> at " + path + " " + line + ":" + col;
+    bootScreen.appendChild(entry);
 };
 
 const pathSeparator = (window.vindex.platform === "win32") ? "\\" : "/";

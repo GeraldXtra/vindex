@@ -322,7 +322,7 @@ class BootScreen {
             return;
         }
         let now = performance.now();
-        let wait = this.forced ? 0 : Math.max(this.lastShownAt + 34 - now, this.startedAt + 320 - now);
+        let wait = this.forced ? 0 : Math.max(this.lastShownAt + 80 - now, this.startedAt + 320 - now);
         if (wait > 0) {
             this.pumpTimer = this.later(() => {
                 this.pumpTimer = null;
@@ -364,6 +364,7 @@ class BootScreen {
         this.linesCounter.textContent = String(this.shown).padStart(2, "0");
         this.timeCounter.textContent = t + " ms";
         this.lastShownAt = performance.now();
+        line.shownAt = this.lastShownAt;
         this.sound((status === "fail") ? "error" : "stdout");
         if (line.onShown) line.onShown();
     }
@@ -378,13 +379,7 @@ class BootScreen {
             ["AUDIO", "settings.audio", () => this.checkAudio()],
             ["GPU", "getContext", () => this.checkGPU()],
             ["FONTS", "document.fonts", () => this.checkFonts()],
-            ["SENSORS", "si.cpu", () => this.checkCPU()],
-            ["SENSORS", "si.mem", () => this.checkMemory()],
-            ["SENSORS", "si.fsSize", () => this.checkDisk()],
-            ["SENSORS", "si.battery", () => this.checkBattery()],
-            ["SENSORS", "si.system", () => this.checkModel()],
-            ["NETWORK", "si.networkInterfaces", () => this.checkNetwork()],
-            ["FILES", "settings.cwd", () => [["Start folder " + settings.cwd, "ok"]]]
+            ["SENSORS", "navigator.getBattery", () => this.checkBattery()]
         ];
         this.checksLeft = checks.length;
         checks.forEach(([tag, name, task]) => this.check(tag, name, task));
@@ -417,13 +412,14 @@ class BootScreen {
 
     checkReady() {
         if (this.ready || !this.checksDone || !this.replied || this.queue.length > 0 || this.pumpTimer !== null || !this.building.state) return;
-        let elapsed = performance.now() - this.startedAt;
-        if (elapsed < 1800 && !this.forced) {
+        let now = performance.now();
+        let wait = this.forced ? 0 : Math.max(this.startedAt + 1800 - now, this.building.shownAt + 240 - now);
+        if (wait > 0) {
             if (this.readyTimer === null) {
-                this.readyTimer = this.at(1800, () => {
+                this.readyTimer = this.later(() => {
                     this.readyTimer = null;
                     this.checkReady();
-                });
+                }, wait);
             }
             return;
         }
@@ -433,7 +429,7 @@ class BootScreen {
         if (this.problems === 0) {
             this.addLine("READY", "All systems online", "ok", onShown);
         } else {
-            this.addLine("READY", "Started with " + this.problems + " problems", "warn", onShown);
+            this.addLine("READY", "Started with " + this.problems + ((this.problems === 1) ? " problem" : " problems"), "warn", onShown);
         }
     }
 
@@ -463,11 +459,22 @@ class BootScreen {
         let lines = [];
         let info = gl.getExtension("WEBGL_debug_renderer_info");
         let renderer = info ? gl.getParameter(info.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER);
-        if (typeof renderer === "string" && renderer !== "") lines.push([renderer.slice(0, 80), "ok"]);
+        if (typeof renderer === "string" && renderer !== "") lines.push([this.gpuName(renderer), "ok"]);
         lines.push(["WebGL 2 ready", "ok"]);
         let context = gl.getExtension("WEBGL_lose_context");
         if (context) context.loseContext();
         return lines;
+    }
+
+    gpuName(renderer) {
+        let name = renderer;
+        if (name.startsWith("ANGLE (") && name.endsWith(")")) {
+            let parts = name.slice(7, -1).split(", ");
+            name = (parts.length >= 2) ? parts[1] : parts[0];
+        }
+        name = name.replace(/ \(0x[0-9A-Fa-f]+\).*$/, "").replace(/ Direct3D.*$/, "").replace(/^ANGLE \w+ Renderer: /, "").replace(/\(R\)|\(TM\)|\(tm\)/g, "").replace(/\s+/g, " ").trim();
+        if (name === "") name = renderer;
+        return name.slice(0, 80);
     }
 
     async checkFonts() {
@@ -483,74 +490,31 @@ class BootScreen {
         return [[missing.join(" · ") + " not loaded", "warn"]];
     }
 
-    joinWords(...words) {
-        return words.filter(word => typeof word === "string" && word.trim() !== "").map(word => word.trim()).join(" ");
-    }
-
-    gigabytes(bytes) {
-        return (bytes / 1073741824).toFixed(1);
-    }
-
-    linkSpeed(mbps) {
-        if (!(mbps > 0)) return "";
-        if (mbps >= 1000) return " · " + Number((mbps / 1000).toFixed(1)) + " Gbps";
-        return " · " + Math.round(mbps) + " Mbps";
-    }
-
-    async checkCPU() {
-        let cpu = await window.si.cpu();
-        if (!cpu) return null;
-        let lines = [[this.joinWords("CPU", cpu.manufacturer, cpu.brand) + " · " + cpu.physicalCores + " cores · " + cpu.cores + " threads", "ok"]];
-        if (cpu.speedMax > 0) lines.push(["CPU " + cpu.speed + " GHz base · " + cpu.speedMax + " GHz max", "ok"]);
-        return lines;
-    }
-
-    async checkMemory() {
-        let mem = await window.si.mem();
-        if (!mem) return null;
-        return [["Memory " + this.gigabytes(mem.total) + " GB · " + this.gigabytes(mem.active) + " GB in use", "ok"]];
-    }
-
-    async checkDisk() {
-        let disks = await window.si.fsSize();
-        if (!Array.isArray(disks) || disks.length === 0) return null;
-        let root = (window.vindex.platform === "win32") ? "C:" : "/";
-        let disk = disks.find(entry => entry.mount === root) || disks[0];
-        return [["Disk " + disk.mount + " " + disk.type + " · " + Math.round(disk.use) + "% used", "ok"]];
+    readBattery() {
+        return new Promise(resolve => {
+            let timer = setTimeout(() => resolve(null), 1000);
+            let done = battery => {
+                clearTimeout(timer);
+                resolve(battery);
+            };
+            try {
+                Promise.resolve(navigator.getBattery()).then(done, () => done(null));
+            } catch(err) {
+                done(null);
+            }
+        });
     }
 
     async checkBattery() {
-        let battery = await window.si.battery();
-        if (!battery) return null;
-        if (!battery.hasBattery) return [["No battery · mains power", "info"]];
-        return [["Battery " + Math.round(battery.percent) + "% · " + (battery.acConnected ? "on AC power" : "on battery"), "ok"]];
-    }
-
-    async checkModel() {
-        let system = await window.si.system();
-        if (!system) return null;
-        let model = this.joinWords(system.manufacturer, system.model);
-        return (model === "") ? [] : [["Model " + model, "ok"]];
-    }
-
-    async checkNetwork() {
-        let data = await window.si.networkInterfaces(false);
-        if (!Array.isArray(data)) return null;
-        let lines = [[data.length + " network interfaces found", "ok"]];
-        let net = null;
-        if (typeof this.settings.iface === "string") net = data.find(iface => iface.iface === this.settings.iface) || null;
-        if (net === null) {
-            let usable = data.filter(iface => iface.operstate === "up" && iface.internal !== true && iface.ip4 !== "" && iface.mac !== "");
-            net = usable.find(iface => iface.default === true) || usable[0] || null;
-        }
-        if (net === null) {
-            lines.push(["No active network", "warn"]);
-        } else {
-            lines.push(["Default route " + net.iface + this.linkSpeed(net.speed), "ok"]);
-        }
-        let virtual = data.filter(iface => iface.virtual === true && iface !== net).length;
-        if (virtual > 0) lines.push([virtual + " virtual adapters ignored", "info"]);
-        return lines;
+        if (typeof navigator.getBattery !== "function") return [];
+        let battery = await this.readBattery();
+        if (!battery) return [];
+        let level = battery.level;
+        if (typeof level !== "number" || !(level >= 0 && level <= 1)) return [];
+        let percent = Math.round(level * 100);
+        if (battery.charging === false) return [["Battery " + percent + "% · on battery", "ok"]];
+        if (battery.charging === true && level < 1) return [["Battery " + percent + "% · on AC power", "ok"]];
+        return [];
     }
 
     startActTwo() {

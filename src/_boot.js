@@ -76,6 +76,73 @@ function osLabel() {
     return `${os.type()} ${os.release()}`;
 }
 
+function shortPath(target) {
+    try {
+        if (typeof target !== "string") return target;
+        let home = os.homedir();
+        if (typeof home !== "string" || home === "") return target;
+        let head = target.slice(0, home.length);
+        let isHome = (process.platform === "win32") ? head.toLowerCase() === home.toLowerCase() : head === home;
+        let next = target.charAt(home.length);
+        if (!isHome || (next !== "" && next !== "\\" && next !== "/")) return target;
+        return "~" + target.slice(home.length);
+    } catch(err) {
+        return target;
+    }
+}
+
+function reportCPU() {
+    try {
+        let cpus = os.cpus();
+        if (!Array.isArray(cpus) || cpus.length === 0) return;
+        let model = (typeof cpus[0].model === "string") ? cpus[0].model : "";
+        let name = model.replace(/\(R\)|\(TM\)|\(tm\)/g, "").replace(/\bCPU\b/g, "").replace(/@.*$/, "").replace(/\s+/g, " ").trim();
+        let threads = (cpus.length === 1) ? "1 thread" : `${cpus.length} threads`;
+        bootEvent("SENSORS", (name === "") ? `CPU ${threads}` : `CPU ${name} · ${threads}`);
+    } catch(err) {
+        signale.warn("Could not report the CPU:", err);
+    }
+}
+
+function reportMemory() {
+    try {
+        bootEvent("SENSORS", `Memory ${(os.totalmem() / 1073741824).toFixed(1)} GB`);
+    } catch(err) {
+        signale.warn("Could not report the memory:", err);
+    }
+}
+
+function reportDisk() {
+    try {
+        let label = (process.platform === "win32") ? (process.env.SystemDrive || "C:") : "/";
+        let root = (process.platform === "win32") ? label + "\\" : "/";
+        if (typeof fs.statfsSync !== "function") return;
+        let stats = fs.statfsSync(root);
+        if (!(stats.blocks > 0)) return;
+        let total = stats.blocks * stats.bsize;
+        let used = Math.round((stats.blocks - stats.bfree) / stats.blocks * 100);
+        let gigabytes = Math.round(total / 1073741824);
+        let size = (gigabytes >= 1024) ? `${(total / 1099511627776).toFixed(1)} TB` : `${gigabytes} GB`;
+        bootEvent("SENSORS", `Disk ${label} · ${size} · ${used}% used`);
+    } catch(err) {
+        signale.warn("Could not report the disk:", err);
+    }
+}
+
+function reportNetwork() {
+    try {
+        let interfaces = os.networkInterfaces();
+        let count = Object.values(interfaces).filter(addresses => Array.isArray(addresses) && addresses.some(address => address && address.internal === false && (address.family === "IPv4" || address.family === 4))).length;
+        if (count > 0) {
+            bootEvent("NETWORK", (count === 1) ? "1 network adapter active" : `${count} network adapters active`);
+        } else {
+            bootEvent("NETWORK", "No active network adapter", "warn");
+        }
+    } catch(err) {
+        signale.warn("Could not report the network adapters:", err);
+    }
+}
+
 bootEvent("MAIN", `Starting Vindex ${app.getVersion()}`);
 bootEvent("MAIN", `Electron ${process.versions.electron} · Node ${process.versions.node} · Chromium ${process.versions.chrome.split(".")[0]}`);
 bootEvent("MAIN", `${osLabel()} · ${process.arch}`);
@@ -675,7 +742,7 @@ try {
 } catch(e) {
     signale.info(`Base config dir is ${electron.app.getPath("userData")}`);
 }
-bootEvent("CONFIG", `Config folder ${electron.app.getPath("userData")}`);
+bootEvent("CONFIG", `Config folder ${shortPath(electron.app.getPath("userData"))}`);
 function readOldJSONFile(file) {
     let content = fs.readFileSync(file, {encoding: "utf-8"});
     if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
@@ -733,7 +800,7 @@ function copyOldUserData(oldDir) {
         }
     });
     signale.info(`Imported eDEX-UI settings from ${oldDir}: copied ${copied.join(", ") || "nothing"}; skipped ${skipped.join(", ") || "nothing"}`);
-    if (copied.length > 0) bootEvent("CONFIG", `Imported eDEX-UI settings · ${copied.length} items`, "info");
+    if (copied.length > 0) bootEvent("CONFIG", `Imported eDEX-UI settings · ${copied.length} ${(copied.length === 1) ? "item" : "items"}`, "info");
 }
 try {
     let oldUserDataDir = path.join(app.getPath("appData"), "eDEX-UI");
@@ -977,6 +1044,7 @@ app.on('ready', async () => {
     signale.success(`Settings loaded!`);
 
     if (!require("fs").existsSync(settings.cwd)) throw new Error("Configured cwd path does not exist.");
+    bootEvent("FILES", `Start folder ${shortPath(settings.cwd)}`);
 
     // See #366
     let cleanEnv = await require("shell-env")(settings.shell).catch(e => { throw e; });
@@ -1019,9 +1087,14 @@ app.on('ready', async () => {
 
     // Support for multithreaded systeminformation calls
     signale.pending("Starting multithreaded calls controller...");
+    reportCPU();
+    reportMemory();
+    reportDisk();
+    reportNetwork();
     bootEvent("WORKER", "Starting 3 system workers");
     require("./_multithread.js")(isMainWindowPage, (job, pid) => {
-        bootEvent("WORKER", `${job} worker up · PID ${pid}`);
+        let name = String(job);
+        bootEvent("WORKER", `${name.charAt(0).toUpperCase()}${name.slice(1)} worker up · PID ${pid}`);
     });
 
     createWindow(settings);
