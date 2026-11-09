@@ -1,0 +1,42 @@
+{
+    "vindex": 1,
+    "name": "Signal",
+    "colors": {
+        "bg": "#0F1113",
+        "grid": "#161A1D",
+        "panel": "#14171A",
+        "raised": "#1A1E22",
+        "line": "#252A30",
+        "strong": "#333A42",
+        "text": "#E6E8EA",
+        "text2": "#A3AAB2",
+        "text3": "#838B94",
+        "accent": "#3FD5C3",
+        "ink": "#06110F",
+        "green": "#7BD88F",
+        "red": "#FF7A85"
+    },
+    "terminal": {
+        "background": "#0F1113",
+        "foreground": "#E6E8EA",
+        "cursor": "#3FD5C3",
+        "cursorAccent": "#06110F",
+        "selection": "#3FD5C340",
+        "black": "#333A42",
+        "red": "#FF7A85",
+        "green": "#7BD88F",
+        "yellow": "#E8B84A",
+        "blue": "#6EA8FF",
+        "magenta": "#C792EA",
+        "cyan": "#3FD5C3",
+        "white": "#A3AAB2",
+        "brightBlack": "#838B94",
+        "brightRed": "#FFA0A8",
+        "brightGreen": "#A5E8B3",
+        "brightYellow": "#F5CF75",
+        "brightBlue": "#98C1FF",
+        "brightMagenta": "#DAB2F2",
+        "brightCyan": "#7DE5D8",
+        "brightWhite": "#E6E8EA"
+    }
+}

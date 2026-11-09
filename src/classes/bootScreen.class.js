@@ -374,7 +374,7 @@ class BootScreen {
         let checks = [
             ["UI", "window.vindex", () => (typeof window.vindex.getBootEvents === "function") ? [["Preload bridge ready", "ok"]] : null],
             ["SECURITY", "document.querySelector", () => [document.querySelector("meta[http-equiv='Content-Security-Policy' i]") ? ["Content Security Policy present", "ok"] : ["Content Security Policy missing", "fail"]]],
-            ["CONFIG", "settings.theme", () => [["Theme " + settings.theme + " loaded", "ok"]]],
+            ["CONFIG", "settings.theme", () => [["Theme " + window.theme.name + " loaded", "ok"]]],
             ["CONFIG", "readKeyboardLayout", () => this.checkKeyboard()],
             ["AUDIO", "settings.audio", () => this.checkAudio()],
             ["GPU", "getContext", () => this.checkGPU()],

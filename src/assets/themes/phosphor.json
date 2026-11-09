@@ -1,0 +1,42 @@
+{
+    "vindex": 1,
+    "name": "Phosphor",
+    "colors": {
+        "bg": "#0D110E",
+        "grid": "#141A15",
+        "panel": "#121713",
+        "raised": "#171D18",
+        "line": "#222A23",
+        "strong": "#2E3830",
+        "text": "#E2EBE3",
+        "text2": "#A1AFA3",
+        "text3": "#84927F",
+        "accent": "#7FE07A",
+        "ink": "#071206",
+        "green": "#7FE07A",
+        "red": "#FF8080"
+    },
+    "terminal": {
+        "background": "#0D110E",
+        "foreground": "#E2EBE3",
+        "cursor": "#7FE07A",
+        "cursorAccent": "#071206",
+        "selection": "#7FE07A40",
+        "black": "#2E3830",
+        "red": "#FF8080",
+        "green": "#7FE07A",
+        "yellow": "#E8B84A",
+        "blue": "#6EA8FF",
+        "magenta": "#C792EA",
+        "cyan": "#3FD5C3",
+        "white": "#A1AFA3",
+        "brightBlack": "#84927F",
+        "brightRed": "#FFA6A6",
+        "brightGreen": "#A8EDA4",
+        "brightYellow": "#F5CF75",
+        "brightBlue": "#98C1FF",
+        "brightMagenta": "#DAB2F2",
+        "brightCyan": "#7DE5D8",
+        "brightWhite": "#E2EBE3"
+    }
+}

@@ -1,0 +1,42 @@
+{
+    "vindex": 1,
+    "name": "Paper",
+    "colors": {
+        "bg": "#F3F2EE",
+        "grid": "#E5E3DC",
+        "panel": "#ECEBE6",
+        "raised": "#E4E2DC",
+        "line": "#D3D0C8",
+        "strong": "#BDB9AF",
+        "text": "#17191B",
+        "text2": "#45494E",
+        "text3": "#5E6369",
+        "accent": "#096B61",
+        "ink": "#F3F2EE",
+        "green": "#1E7B3A",
+        "red": "#B42335"
+    },
+    "terminal": {
+        "background": "#F3F2EE",
+        "foreground": "#17191B",
+        "cursor": "#096B61",
+        "cursorAccent": "#F3F2EE",
+        "selection": "#096B6133",
+        "black": "#17191B",
+        "red": "#B42335",
+        "green": "#1E7B3A",
+        "yellow": "#8A5A00",
+        "blue": "#1F5FBF",
+        "magenta": "#8E3DA8",
+        "cyan": "#096B61",
+        "white": "#5E6369",
+        "brightBlack": "#45494E",
+        "brightRed": "#D03B4D",
+        "brightGreen": "#2E9650",
+        "brightYellow": "#A87000",
+        "brightBlue": "#2F74D6",
+        "brightMagenta": "#A653C2",
+        "brightCyan": "#0E8A7D",
+        "brightWhite": "#17191B"
+    }
+}

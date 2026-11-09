@@ -1,0 +1,42 @@
+{
+    "vindex": 1,
+    "name": "Amber",
+    "colors": {
+        "bg": "#121010",
+        "grid": "#1A1614",
+        "panel": "#171413",
+        "raised": "#1D1916",
+        "line": "#2A2420",
+        "strong": "#39312B",
+        "text": "#EEE7DF",
+        "text2": "#B5AA9E",
+        "text3": "#8F8477",
+        "accent": "#F2A93B",
+        "ink": "#1A1104",
+        "green": "#A9CF7A",
+        "red": "#FF8A7A"
+    },
+    "terminal": {
+        "background": "#121010",
+        "foreground": "#EEE7DF",
+        "cursor": "#F2A93B",
+        "cursorAccent": "#1A1104",
+        "selection": "#F2A93B40",
+        "black": "#39312B",
+        "red": "#FF8A7A",
+        "green": "#A9CF7A",
+        "yellow": "#E8B84A",
+        "blue": "#6EA8FF",
+        "magenta": "#C792EA",
+        "cyan": "#3FD5C3",
+        "white": "#B5AA9E",
+        "brightBlack": "#8F8477",
+        "brightRed": "#FFAEA2",
+        "brightGreen": "#C6E2A2",
+        "brightYellow": "#F5CF75",
+        "brightBlue": "#98C1FF",
+        "brightMagenta": "#DAB2F2",
+        "brightCyan": "#7DE5D8",
+        "brightWhite": "#EEE7DF"
+    }
+}

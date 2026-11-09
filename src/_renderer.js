@@ -44,58 +44,50 @@ const themesDir = settingsDir + pathSeparator + "themes";
 const keyboardsDir = settingsDir + pathSeparator + "keyboards";
 const fontsDir = settingsDir + pathSeparator + "fonts";
 
-// Load UI theme
+const themeColorKeys = ["bg", "grid", "panel", "raised", "line", "strong", "text", "text2", "text3", "accent", "ink", "green", "red"];
+const themeTerminalKeys = ["background", "foreground", "cursor", "cursorAccent", "selection", "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white", "brightBlack", "brightRed", "brightGreen", "brightYellow", "brightBlue", "brightMagenta", "brightCyan", "brightWhite"];
+
+function isHexColor(value) {
+    return typeof value === "string" && /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(value);
+}
+
+function isVindexThemeData(theme) {
+    if (theme === null || typeof theme !== "object") return false;
+    if (theme.vindex !== 1 || typeof theme.name !== "string" || theme.name === "") return false;
+    if (theme.colors === null || typeof theme.colors !== "object" || theme.terminal === null || typeof theme.terminal !== "object") return false;
+    return themeColorKeys.every(key => isHexColor(theme.colors[key])) && themeTerminalKeys.every(key => isHexColor(theme.terminal[key]));
+}
+
 window._loadTheme = theme => {
+    let root = document.documentElement;
+    let colors = theme.colors;
+    themeColorKeys.forEach(key => {
+        root.style.setProperty("--vx-" + key, colors[key]);
+    });
 
-    if (document.querySelector("style.theming")) {
-        document.querySelector("style.theming").remove();
-    }
+    let accent = {
+        r: parseInt(colors.accent.slice(1, 3), 16),
+        g: parseInt(colors.accent.slice(3, 5), 16),
+        b: parseInt(colors.accent.slice(5, 7), 16)
+    };
+    root.style.setProperty("--color_r", String(accent.r));
+    root.style.setProperty("--color_g", String(accent.g));
+    root.style.setProperty("--color_b", String(accent.b));
+    root.style.setProperty("--color_black", colors.bg);
+    root.style.setProperty("--color_light_black", colors.panel);
+    root.style.setProperty("--color_grey", colors.text3);
+    root.style.setProperty("--color_red", colors.red);
+    root.style.setProperty("--color_yellow", "#F2C14E");
+    root.style.setProperty("--font_main", "\"Barlow Semi Condensed\"");
+    root.style.setProperty("--font_main_light", "\"Barlow Semi Condensed\"");
+    root.style.setProperty("--font_mono", "\"JetBrains Mono\"");
 
-    // Load fonts
-    let mainFont = new FontFace(theme.cssvars.font_main, `url("${(fontsDir + pathSeparator + theme.cssvars.font_main.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
-    let lightFont = new FontFace(theme.cssvars.font_main_light, `url("${(fontsDir + pathSeparator + theme.cssvars.font_main_light.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
-    let termFont = new FontFace(theme.terminal.fontFamily, `url("${(fontsDir + pathSeparator + theme.terminal.fontFamily.toLowerCase().replace(/ /g, '_')+'.woff2').replace(/\\/g, '/')}")`);
-
-    document.fonts.add(mainFont);
-    document.fonts.load("12px "+theme.cssvars.font_main);
-    document.fonts.add(lightFont);
-    document.fonts.load("12px "+theme.cssvars.font_main_light);
-    document.fonts.add(termFont);
-    document.fonts.load("12px "+theme.terminal.fontFamily);
-
-    document.querySelector("head").innerHTML += `<style class="theming">
-    :root {
-        --font_main: "${window._purifyCSS(theme.cssvars.font_main)}";
-        --font_main_light: "${window._purifyCSS(theme.cssvars.font_main_light)}";
-        --font_mono: "${window._purifyCSS(theme.terminal.fontFamily)}";
-        --color_r: ${window._purifyCSS(theme.colors.r)};
-        --color_g: ${window._purifyCSS(theme.colors.g)};
-        --color_b: ${window._purifyCSS(theme.colors.b)};
-        --color_black: ${window._purifyCSS(theme.colors.black)};
-        --color_light_black: ${window._purifyCSS(theme.colors.light_black)};
-        --color_grey: ${window._purifyCSS(theme.colors.grey)};
-
-        /* Used for error and warning modals */
-        --color_red: ${window._purifyCSS(theme.colors.red) || "red"};
-        --color_yellow: ${window._purifyCSS(theme.colors.yellow) || "yellow"};
-    }
-
-    body {
-        font-family: var(--font_main), sans-serif;
-        cursor: ${(window.settings.nocursorOverride || window.settings.nocursor) ? "none" : "default"} !important;
-    }
-
-    * {
-   	   ${(window.settings.nocursorOverride || window.settings.nocursor) ? "cursor: none !important;" : ""}
-	}
-
-    ${window._purifyCSS(theme.injectCSS || "")}
-    </style>`;
+    root.classList.toggle("vx-nocursor", Boolean(window.settings.nocursorOverride || window.settings.nocursor));
 
     window.theme = theme;
-    window.theme.r = theme.colors.r;
-    window.theme.g = theme.colors.g;
-    window.theme.b = theme.colors.b;
+    window.theme.r = accent.r;
+    window.theme.g = accent.g;
+    window.theme.b = accent.b;
 };
 
 function initGraphicalErrorHandling() {
@@ -163,178 +155,263 @@ async function getDisplayName() {
     return user;
 }
 
-// Create the UI's html structure and initialize the terminal client and the keyboard
+function shellFileName() {
+    return String(window.settings.shell || "").split(/[\\/]/).pop();
+}
+
+function shellBaseName() {
+    let name = shellFileName();
+    let dot = name.lastIndexOf(".");
+    return (dot > 0) ? name.slice(0, dot) : name;
+}
+
+function terminalFontSize() {
+    return window.settings.termFontSize || 13;
+}
+
+function twoDigits(value) {
+    return String(value).padStart(2, "0");
+}
+
+function showShellCwd(cwd) {
+    let label = document.getElementById("vx-term-cwd");
+    if (typeof cwd === "string" && cwd !== "" && !cwd.startsWith("FALLBACK |-- ")) {
+        label.textContent = cwd;
+        label.hidden = false;
+    } else {
+        label.textContent = "";
+        label.hidden = true;
+    }
+}
+
+function showShellSize(cols, rows) {
+    document.getElementById("vx-term-size").textContent = cols + " × " + rows;
+}
+
+function showShellRenderer(renderer) {
+    let webgl = renderer === "webgl";
+    document.getElementById("vx-term-renderer").textContent = webgl ? "WEBGL" : "CANVAS";
+    document.getElementById("vx-footer-renderer").textContent = webgl ? "WebGL" : "Canvas";
+}
+
+function wireShellTerminal(number) {
+    let term = window.term[number];
+    term.oncwdchange = cwd => {
+        if (window.currentTerm === number) showShellCwd(cwd);
+    };
+    term.onsizechange = (cols, rows) => {
+        if (window.currentTerm === number) showShellSize(cols, rows);
+    };
+}
+
+function freeShellSlot() {
+    for (let n = 1; n <= 4; n++) {
+        if (window.term[n] !== null && typeof window.term[n] !== "object") return n;
+    }
+    return null;
+}
+
+function startClocks() {
+    let local = document.getElementById("vx-clock-local");
+    let utc = document.getElementById("vx-clock-utc");
+    let uptime = document.getElementById("vx-uptime");
+    let twelveHours = window.settings.clockHours === 12;
+    let uptimeBase = null;
+    let uptimeReadAt = performance.now();
+
+    let update = () => {
+        let now = new Date();
+        let hours = now.getHours();
+        if (twelveHours) {
+            local.textContent = twoDigits(hours % 12 || 12) + ":" + twoDigits(now.getMinutes()) + ":" + twoDigits(now.getSeconds()) + ((hours < 12) ? " AM" : " PM");
+        } else {
+            local.textContent = twoDigits(hours) + ":" + twoDigits(now.getMinutes()) + ":" + twoDigits(now.getSeconds());
+        }
+        utc.textContent = twoDigits(now.getUTCHours()) + ":" + twoDigits(now.getUTCMinutes()) + ":" + twoDigits(now.getUTCSeconds());
+        if (uptimeBase !== null) {
+            let total = Math.floor(uptimeBase + (performance.now() - uptimeReadAt) / 1000);
+            let days = Math.floor(total / 86400);
+            let rest = total % 86400;
+            uptime.textContent = days + "d " + twoDigits(Math.floor(rest / 3600)) + ":" + twoDigits(Math.floor(rest % 3600 / 60)) + ":" + twoDigits(rest % 60);
+        }
+    };
+
+    window.vindex.getSystemUptime().then(seconds => {
+        if (typeof seconds !== "number" || !Number.isFinite(seconds) || seconds < 0) return;
+        uptimeBase = seconds;
+        uptimeReadAt = performance.now();
+        update();
+    }).catch(err => {
+        window.vindex.log("error", "Could not read the system uptime: " + String((err && err.message) || err));
+    });
+
+    update();
+    setInterval(update, 1000);
+}
+
+function startBattery() {
+    if (typeof navigator.getBattery !== "function") return;
+    let box = document.getElementById("vx-battery");
+    let bars = document.querySelectorAll("#vx-battery-bars > .vx-battery-bar");
+    let level = document.getElementById("vx-battery-level");
+    let state = document.getElementById("vx-battery-state");
+
+    let reading;
+    try {
+        reading = Promise.resolve(navigator.getBattery()).catch(() => null);
+    } catch(err) {
+        return;
+    }
+    let timeout = new Promise(resolve => {
+        setTimeout(() => resolve(null), 1000);
+    });
+
+    Promise.race([reading, timeout]).then(battery => {
+        if (!battery || typeof battery.addEventListener !== "function") return;
+        let shown = false;
+        let update = () => {
+            let value = battery.level;
+            if (typeof value !== "number" || !(value >= 0 && value <= 1)) return;
+            if (!shown && (battery.charging === false || value < 1)) {
+                shown = true;
+                box.hidden = false;
+            }
+            let filled = Math.round(value * 5);
+            bars.forEach((bar, i) => {
+                bar.classList.toggle("vx-on", i < filled);
+            });
+            level.textContent = Math.round(value * 100) + "%";
+            state.textContent = (battery.charging === true) ? "AC" : "BAT";
+        };
+        update();
+        battery.addEventListener("levelchange", update);
+        battery.addEventListener("chargingchange", update);
+    });
+}
+
 async function initUI() {
-    window.fileIcons = await window.vindex.getFileIcons();
-    window.globeGrid = await window.vindex.getGlobeGrid();
-    let colorFilter = window.theme.terminal.colorFilter;
-    if (!Array.isArray(colorFilter) || !colorFilter.every(step => typeof step === "string")) colorFilter = [];
-    window.terminalPalette = await window.vindex.getTerminalPalette(`rgb(${window.theme.r}, ${window.theme.g}, ${window.theme.b})`, colorFilter);
+    let settings = window.settings;
 
-    document.body.innerHTML += `<section class="mod_column" id="mod_column_left">
-        <h3 class="title"><p>PANEL</p><p>SYSTEM</p></h3>
-    </section>
-    <section id="main_shell" style="height:0%;width:0%;opacity:0;margin-bottom:30vh;" augmented-ui="bl-clip tr-clip exe">
-        <h3 class="title" style="opacity:0;"><p>TERMINAL</p><p>MAIN SHELL</p></h3>
-        <h1 id="main_shell_greeting"></h1>
-    </section>
-    <section class="mod_column" id="mod_column_right">
-        <h3 class="title"><p>PANEL</p><p>NETWORK</p></h3>
-    </section>`;
+    document.getElementById("vx-version").textContent = window.vindex.appVersion || "";
+    document.getElementById("vx-theme-name").textContent = window.theme.name.toUpperCase();
+    document.getElementById("vx-kb-layout").textContent = settings.keyboard;
+    document.getElementById("vx-term-input").textContent = "INPUT " + settings.keyboard;
+    document.getElementById("vx-term-shell").textContent = shellFileName();
+    document.getElementById("vx-term-badge").textContent = shellBaseName().toUpperCase();
+    let chrome = navigator.userAgent.match(/Chrome\/(\d+)/);
+    document.getElementById("vx-footer-versions").textContent = "Electron " + window.vindex.electronVersion + (chrome ? " · Chromium " + chrome[1] : "");
+    let volume = Number.isFinite(settings.audioVolume) ? settings.audioVolume : 1;
+    document.getElementById("vx-footer-sfx").textContent = (settings.audio === true) ? "SFX " + Math.round(volume * 100) + "%" : "SFX OFF";
 
-    await _delay(10);
+    startClocks();
+    startBattery();
 
-    window.audioManager.expand.play();
-    document.getElementById("main_shell").setAttribute("style", "height:0%;margin-bottom:30vh;");
-
-    await _delay(500);
-
-    document.getElementById("main_shell").setAttribute("style", "margin-bottom: 30vh;");
-    document.querySelector("#main_shell > h3.title").setAttribute("style", "");
-
-    await _delay(700);
-
-    document.getElementById("main_shell").setAttribute("style", "opacity: 0;");
-    document.body.innerHTML += `
-    <section id="filesystem" style="width: 0px;" class="${window.settings.hideDotfiles ? "hideDotfiles" : ""} ${window.settings.fsListView ? "list-view" : ""}">
-    </section>
-    <section id="keyboard" style="opacity:0;">
-    </section>`;
+    let layout = await window.vindex.readKeyboardLayout(settings.keyboard);
+    if (layout === null) throw new Error("Could not load the keyboard layout " + settings.keyboard + ".");
     window.keyboard = new Keyboard({
-        layout: await window.vindex.readKeyboardLayout(window.settings.keyboard),
+        layout,
         container: "keyboard"
     });
 
-    await _delay(10);
+    let fontSize = terminalFontSize();
+    await Promise.all([
+        document.fonts.load("400 " + fontSize + "px 'JetBrains Mono'"),
+        document.fonts.load("700 " + fontSize + "px 'JetBrains Mono'")
+    ]);
 
-    document.getElementById("main_shell").setAttribute("style", "");
-
-    await _delay(270);
-
-    let greeter = document.getElementById("main_shell_greeting");
-
-    getDisplayName().then(user => {
-        if (user) {
-            greeter.innerHTML += `Welcome back, <em>${user}</em>`;
-        } else {
-            greeter.innerHTML += "Welcome back";
-        }
-    });
-
-    greeter.setAttribute("style", "opacity: 1;");
-
-    document.getElementById("filesystem").setAttribute("style", "");
-    document.getElementById("keyboard").setAttribute("style", "");
-    document.getElementById("keyboard").setAttribute("class", "animation_state_1");
-    window.audioManager.keyboard.play();
-
-    await _delay(100);
-
-    document.getElementById("keyboard").setAttribute("class", "animation_state_1 animation_state_2");
-
-    await _delay(1000);
-
-    greeter.setAttribute("style", "opacity: 0;");
-
-    await _delay(100);
-
-    document.getElementById("keyboard").setAttribute("class", "");
-
-    await _delay(400);
-
-    greeter.remove();
-
-    // Initialize modules
-    window.mods = {};
-
-    // Left column
-    window.mods.clock = new Clock("mod_column_left");
-    window.mods.sysinfo = new Sysinfo("mod_column_left");
-    window.mods.hardwareInspector = new HardwareInspector("mod_column_left");
-    window.mods.cpuinfo = new Cpuinfo("mod_column_left");
-    window.mods.ramwatcher = new RAMwatcher("mod_column_left");
-    window.mods.toplist = new Toplist("mod_column_left");
-
-    // Right column
-    window.mods.netstat = new Netstat("mod_column_right");
-    window.mods.globe = new LocationGlobe("mod_column_right");
-    window.mods.conninfo = new Conninfo("mod_column_right");
-
-    // Fade-in animations
-    document.querySelectorAll(".mod_column").forEach(e => {
-        e.setAttribute("class", "mod_column activated");
-    });
-    let i = 0;
-    let left = document.querySelectorAll("#mod_column_left > div");
-    let right = document.querySelectorAll("#mod_column_right > div");
-    let x = setInterval(() => {
-        if (!left[i] && !right[i]) {
-            clearInterval(x);
-        } else {
-            window.audioManager.panels.play();
-            if (left[i]) {
-                left[i].setAttribute("style", "animation-play-state: running;");
-            }
-            if (right[i]) {
-                right[i].setAttribute("style", "animation-play-state: running;");
-            }
-            i++;
-        }
-    }, 500);
-
-    await _delay(100);
-
-    // Initialize the terminal
-    let shellContainer = document.getElementById("main_shell");
-    shellContainer.innerHTML += `
-        <ul id="main_shell_tabs">
-            <li id="shell_tab0" onclick="window.focusShellTab(0);" class="active"><p>MAIN SHELL</p></li>
-            <li id="shell_tab1" onclick="window.focusShellTab(1);"><p>EMPTY</p></li>
-            <li id="shell_tab2" onclick="window.focusShellTab(2);"><p>EMPTY</p></li>
-            <li id="shell_tab3" onclick="window.focusShellTab(3);"><p>EMPTY</p></li>
-            <li id="shell_tab4" onclick="window.focusShellTab(4);"><p>EMPTY</p></li>
-        </ul>
-        <div id="main_shell_innercontainer">
-            <pre id="terminal0" class="active"></pre>
-            <pre id="terminal1"></pre>
-            <pre id="terminal2"></pre>
-            <pre id="terminal3"></pre>
-            <pre id="terminal4"></pre>
-        </div>`;
+    document.getElementById("terminal0").classList.add("active");
     window.term = {
         0: new Terminal({
             role: "client",
             parentId: "terminal0",
-            port: window.settings.port || 3000
+            port: settings.port || 3000
         })
     };
     window.currentTerm = 0;
+    window.shellProcess = {};
+
     window.term[0].onprocesschange = p => {
-        document.getElementById("shell_tab0").innerHTML = `<p>MAIN - ${p}</p>`;
+        window.shellProcess[0] = p;
+        window.renderShellTabs();
     };
-    // Prevent losing hardware keyboard focus on the terminal when using touch keyboard
+    wireShellTerminal(0);
+    showShellSize(window.term[0].term.cols, window.term[0].term.rows);
+    showShellRenderer(window.term[0].renderer);
+
+    window.renderShellTabs();
+
     window.onmouseup = e => {
         if (window.keyboard.linkedToTerm) window.term[window.currentTerm].term.focus();
     };
-    window.term[0].term.writeln("\033[1m"+`Welcome to Vindex v${window.vindex.appVersion} - Electron v${window.vindex.electronVersion}`+"\033[0m");
 
-    await _delay(100);
-
-    window.fsDisp = new FilesystemDisplay({
-        parentId: "filesystem"
-    });
-
-    await _delay(200);
-
-    document.getElementById("filesystem").setAttribute("style", "opacity: 1;");
-
-    // Resend terminal CWD to fsDisp if we're hot reloading
     if (window.performance.navigation.type === 1) {
         window.term[window.currentTerm].resendCWD();
     }
 
-    await _delay(200);
+    document.getElementById("vx-app").classList.add("vx-ready");
+    requestAnimationFrame(() => {
+        let active = window.term[window.currentTerm];
+        active.fit();
+        active.term.focus();
+    });
 }
+
+function showInterfaceError(err) {
+    try {
+        window.vindex.log("error", "Could not build the interface: " + String((err && (err.stack || err.message)) || err));
+        new Modal({
+            type: "error",
+            title: "Interface",
+            message: window._escapeHtml(String((err && err.message) || err))
+        });
+    } finally {
+        document.getElementById("vx-app").classList.add("vx-ready");
+    }
+}
+
+window.renderShellTabs = () => {
+    let nav = document.getElementById("vx-tabs");
+    let newTab = document.getElementById("vx-new-tab");
+    nav.querySelectorAll(".vx-tab").forEach(tab => tab.remove());
+
+    for (let n = 0; n <= 4; n++) {
+        let term = window.term[n];
+        let starting = term === null;
+        let open = term !== null && typeof term === "object";
+        if (!starting && !open) continue;
+
+        let active = n === window.currentTerm;
+        let tab = document.createElement("button");
+        tab.type = "button";
+        tab.className = "vx-tab " + (starting ? "vx-tab-starting" : (active ? "vx-tab-active" : "vx-tab-open"));
+        tab.setAttribute("aria-pressed", active ? "true" : "false");
+
+        let mark = document.createElement("span");
+        mark.className = "vx-tab-mark";
+        mark.setAttribute("aria-hidden", "true");
+        let number = document.createElement("span");
+        number.className = "vx-tab-number";
+        number.textContent = twoDigits(n + 1);
+        let name = document.createElement("span");
+        name.className = "vx-tab-name";
+        name.textContent = (n === 0) ? "MAIN" : "SHELL";
+        let meta = document.createElement("span");
+        meta.className = "vx-tab-meta";
+        meta.textContent = starting ? "starting" : (window.shellProcess[n] || shellBaseName());
+        tab.append(mark, number, name, meta);
+
+        tab.addEventListener("click", () => {
+            window.focusShellTab(n);
+        });
+        nav.insertBefore(tab, newTab);
+    }
+
+    newTab.hidden = freeShellSlot() === null;
+    newTab.onclick = () => {
+        let slot = freeShellSlot();
+        if (slot !== null) window.focusShellTab(slot);
+    };
+};
 
 window.themeChanger = theme => {
     window.vindex.setThemeOverride(theme);
@@ -346,13 +423,69 @@ window.themeChanger = theme => {
 window.remakeKeyboard = async layout => {
     let layoutData = await window.vindex.readKeyboardLayout(layout);
     if (layoutData === null) throw new Error(`Could not load the keyboard layout "${layout}".`);
-    document.getElementById("keyboard").innerHTML = "";
+    document.getElementById("keyboard").textContent = "";
     window.keyboard = new Keyboard({
         layout: layoutData,
         container: "keyboard"
     });
     window.vindex.setKbOverride(layout);
+    document.getElementById("vx-kb-layout").textContent = layout;
+    document.getElementById("vx-term-input").textContent = "INPUT " + layout;
 };
+
+function failShellTab(number) {
+    delete window.term[number];
+    window.renderShellTabs();
+    new Modal({
+        type: "warning",
+        title: "Terminal",
+        message: "Could not open a new terminal tab."
+    });
+}
+
+function closeShellTab(number) {
+    let wasActive = window.currentTerm === number;
+    document.getElementById("terminal"+number).textContent = "";
+    window.term[number].term.dispose();
+    delete window.term[number];
+    delete window.shellProcess[number];
+    window.renderShellTabs();
+    if (!wasActive) return;
+    for (let n = number - 1; n >= 0; n--) {
+        if (window.term[n]) {
+            window.focusShellTab(n);
+            return;
+        }
+    }
+}
+
+function openShellTab(number, port) {
+    let term;
+    try {
+        term = new Terminal({
+            role: "client",
+            parentId: "terminal"+number,
+            port
+        });
+    } catch(err) {
+        window.vindex.log("error", `Could not start terminal tab ${number+1}: ` + String((err && err.message) || err));
+        failShellTab(number);
+        return;
+    }
+    window.term[number] = term;
+    term.onclose = () => {
+        closeShellTab(number);
+    };
+    term.onprocesschange = p => {
+        window.shellProcess[number] = p;
+        window.renderShellTabs();
+    };
+    wireShellTerminal(number);
+    window.renderShellTabs();
+    setTimeout(() => {
+        window.focusShellTab(number);
+    }, 500);
+}
 
 window.focusShellTab = number => {
     window.audioManager.folder.play();
@@ -360,55 +493,31 @@ window.focusShellTab = number => {
     if (number !== window.currentTerm && window.term[number]) {
         window.currentTerm = number;
 
-        document.querySelectorAll(`ul#main_shell_tabs > li:not(:nth-child(${number+1}))`).forEach(e => {
-            e.setAttribute("class", "");
-        });
-        document.getElementById("shell_tab"+number).setAttribute("class", "active");
+        for (let n = 0; n <= 4; n++) {
+            document.getElementById("terminal"+n).classList.toggle("active", n === number);
+        }
 
-        document.querySelectorAll(`div#main_shell_innercontainer > pre:not(:nth-child(${number+1}))`).forEach(e => {
-            e.setAttribute("class", "");
-        });
-        document.getElementById("terminal"+number).setAttribute("class", "active");
+        let term = window.term[number];
+        term.fit();
+        term.term.focus();
+        term.resendCWD();
+        showShellSize(term.term.cols, term.term.rows);
+        showShellRenderer(term.renderer);
 
-        window.term[number].fit();
-        window.term[number].term.focus();
-        window.term[number].resendCWD();
-
-        window.fsDisp.followTab();
+        if (window.fsDisp) window.fsDisp.followTab();
+        window.renderShellTabs();
     } else if (number > 0 && number <= 4 && window.term[number] !== null && typeof window.term[number] !== "object") {
         window.term[number] = null;
+        window.renderShellTabs();
 
-        document.getElementById("shell_tab"+number).innerHTML = "<p>LOADING...</p>";
         window.vindex.ttySpawn().then(r => {
-            if (r.startsWith("ERROR")) {
-                document.getElementById("shell_tab"+number).innerHTML = "<p>ERROR</p>";
-            } else if (r.startsWith("SUCCESS")) {
-                let port = Number(r.substr(9));
-
-                window.term[number] = new Terminal({
-                    role: "client",
-                    parentId: "terminal"+number,
-                    port
-                });
-
-                window.term[number].onclose = e => {
-                    delete window.term[number].onprocesschange;
-                    document.getElementById("shell_tab"+number).innerHTML = "<p>EMPTY</p>";
-                    document.getElementById("terminal"+number).innerHTML = "";
-                    window.term[number].term.dispose();
-                    delete window.term[number];
-                    window.useAppShortcut("PREVIOUS_TAB");
-                };
-
-                window.term[number].onprocesschange = p => {
-                    document.getElementById("shell_tab"+number).innerHTML = `<p>#${number+1} - ${p}</p>`;
-                };
-
-                document.getElementById("shell_tab"+number).innerHTML = `<p>::${port}</p>`;
-                setTimeout(() => {
-                    window.focusShellTab(number);
-                }, 500);
+            if (typeof r === "string" && r.startsWith("SUCCESS")) {
+                openShellTab(number, Number(r.substr(9)));
+            } else {
+                failShellTab(number);
             }
+        }, () => {
+            failShellTab(number);
         });
     }
 };
@@ -436,7 +545,7 @@ window.openSettings = async () => {
     let nets = await window.si.networkInterfaces(false);
     if (!Array.isArray(nets)) nets = [];
     nets.forEach(net => {
-        if (net.iface !== window.mods.netstat.iface) ifaces += `<option>${net.iface}</option>`;
+        if (net.iface !== (window.settings.iface || "")) ifaces += `<option>${net.iface}</option>`;
     });
 
     // Unlink the tactile keyboard from the terminal emulator to allow filling in the settings fields
@@ -563,7 +672,7 @@ window.openSettings = async () => {
                         <td>iface</td>
                         <td>Override the interface used for network monitoring</td>
                         <td><select id="settingsEditor-iface">
-                            <option>${window.mods.netstat.iface}</option>
+                            <option>${(window.settings.iface || "")}</option>
                             ${ifaces}
                         </select></td>
                     </tr>
@@ -855,12 +964,15 @@ window.useAppShortcut = action => {
             window.openShortcutsHelp();
             return true;
         case "FUZZY_SEARCH":
+            if (!window.fsDisp) return false;
             window.activeFuzzyFinder = new FuzzyFinder();
             return true;
         case "FS_LIST_VIEW":
+            if (!window.fsDisp) return false;
             window.fsDisp.toggleListview();
             return true;
         case "FS_DOTFILES":
+            if (!window.fsDisp) return false;
             window.fsDisp.toggleHidedotfiles();
             return true;
         case "KB_PASSMODE":
@@ -975,8 +1087,12 @@ async function startup() {
             window.settings.theme = theme;
             window.settings.nointroOverride = true;
         }
-        let themeData = await window.vindex.readTheme(window.settings.theme);
-        if (themeData === null) throw new Error(`Could not load the theme "${window.settings.theme}".`);
+        let themeData = (typeof window.settings.theme === "string") ? await window.vindex.readTheme(window.settings.theme) : null;
+        if (!isVindexThemeData(themeData)) {
+            themeData = await window.vindex.readTheme("signal");
+            window.settings.theme = "signal";
+            if (!isVindexThemeData(themeData)) throw new Error("Could not load the theme.");
+        }
         _loadTheme(themeData);
 
         let layout = await window.vindex.getKbOverride();
@@ -993,13 +1109,13 @@ async function startup() {
             initSystemInformationProxy();
             document.getElementById("boot_screen").remove();
             document.body.setAttribute("class", "");
-            waitForFonts().then(initUI);
+            waitForFonts().then(initUI).catch(showInterfaceError);
         } else {
             initSystemInformationProxy();
             await new BootScreen({container: document.getElementById("boot_screen"), settings: window.settings}).run();
             initGraphicalErrorHandling();
             document.body.setAttribute("class", "");
-            waitForFonts().then(initUI);
+            waitForFonts().then(initUI).catch(showInterfaceError);
         }
     } catch(error) {
         let bootScreen = document.getElementById("boot_screen");

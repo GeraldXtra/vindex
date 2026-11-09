@@ -1,0 +1,42 @@
+{
+    "vindex": 1,
+    "name": "Ion",
+    "colors": {
+        "bg": "#0E1014",
+        "grid": "#151922",
+        "panel": "#13161C",
+        "raised": "#191D24",
+        "line": "#242A33",
+        "strong": "#313845",
+        "text": "#E5E9F0",
+        "text2": "#A3ABB8",
+        "text3": "#848D9C",
+        "accent": "#6EA8FF",
+        "ink": "#050C18",
+        "green": "#7BD8A0",
+        "red": "#FF7A8A"
+    },
+    "terminal": {
+        "background": "#0E1014",
+        "foreground": "#E5E9F0",
+        "cursor": "#6EA8FF",
+        "cursorAccent": "#050C18",
+        "selection": "#6EA8FF40",
+        "black": "#313845",
+        "red": "#FF7A8A",
+        "green": "#7BD8A0",
+        "yellow": "#E8B84A",
+        "blue": "#6EA8FF",
+        "magenta": "#C792EA",
+        "cyan": "#3FD5C3",
+        "white": "#A3ABB8",
+        "brightBlack": "#848D9C",
+        "brightRed": "#FFA1AD",
+        "brightGreen": "#A6E7C0",
+        "brightYellow": "#F5CF75",
+        "brightBlue": "#98C1FF",
+        "brightMagenta": "#DAB2F2",
+        "brightCyan": "#7DE5D8",
+        "brightWhite": "#E5E9F0"
+    }
+}

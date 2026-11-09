@@ -7,9 +7,25 @@ class Terminal {
             const FitAddon = window.FitAddon.FitAddon;
             const WebglAddon = window.WebglAddon.WebglAddon;
 
+            if (!Terminal.canvasFontTrimmed) {
+                Terminal.canvasFontTrimmed = true;
+                let fontProperty = Object.getOwnPropertyDescriptor(CanvasRenderingContext2D.prototype, "font");
+                if (fontProperty && fontProperty.get && fontProperty.set) {
+                    Object.defineProperty(CanvasRenderingContext2D.prototype, "font", {
+                        configurable: true,
+                        enumerable: fontProperty.enumerable,
+                        get: fontProperty.get,
+                        set(value) {
+                            fontProperty.set.call(this, (typeof value === "string") ? value.trim() : value);
+                        }
+                    });
+                }
+            }
+
             this.port = opts.port || 3000;
             this.cwd = "";
             this.oncwdchange = () => {};
+            this.onsizechange = () => {};
 
             this._sendSizeToServer = () => {
                 let cols = this.term.cols.toString();
@@ -23,50 +39,57 @@ class Terminal {
                 window.vindex.terminalResize(this.port, cols, rows);
             };
 
-            let palette = window.terminalPalette || {};
+            let palette = window.theme.terminal;
 
             this.term = new this.xTerm({
                 cols: 80,
                 rows: 24,
-                cursorBlink: window.theme.terminal.cursorBlink || true,
-                cursorStyle: window.theme.terminal.cursorStyle || "block",
-                allowTransparency: window.theme.terminal.allowTransparency || false,
-                fontFamily: window.theme.terminal.fontFamily || "Fira Mono",
-                fontSize: window.theme.terminal.fontSize || window.settings.termFontSize || 15,
-                fontWeight: window.theme.terminal.fontWeight || "normal",
-                fontWeightBold: window.theme.terminal.fontWeightBold || "bold",
-                letterSpacing: window.theme.terminal.letterSpacing || 0,
-                lineHeight: window.theme.terminal.lineHeight || 1,
+                cursorBlink: true,
+                cursorStyle: "block",
+                fontFamily: "'JetBrains Mono', monospace",
+                fontSize: window.settings.termFontSize || 13,
+                fontWeight: "normal",
+                fontWeightBold: "bold",
+                letterSpacing: 0,
+                lineHeight: 1,
                 scrollback: 1500,
                 bellStyle: "none",
                 theme: {
-                    foreground: window.theme.terminal.foreground,
-                    background: window.theme.terminal.background,
-                    cursor: window.theme.terminal.cursor,
-                    cursorAccent: window.theme.terminal.cursorAccent,
-                    selection: window.theme.terminal.selection,
-                    black: window.theme.colors.black || palette.black,
-                    red: window.theme.colors.red || palette.red,
-                    green: window.theme.colors.green || palette.green,
-                    yellow: window.theme.colors.yellow || palette.yellow,
-                    blue: window.theme.colors.blue || palette.blue,
-                    magenta: window.theme.colors.magenta || palette.magenta,
-                    cyan: window.theme.colors.cyan || palette.cyan,
-                    white: window.theme.colors.white || palette.white,
-                    brightBlack: window.theme.colors.brightBlack || palette.brightBlack,
-                    brightRed: window.theme.colors.brightRed || palette.brightRed,
-                    brightGreen: window.theme.colors.brightGreen || palette.brightGreen,
-                    brightYellow: window.theme.colors.brightYellow || palette.brightYellow,
-                    brightBlue: window.theme.colors.brightBlue || palette.brightBlue,
-                    brightMagenta: window.theme.colors.brightMagenta || palette.brightMagenta,
-                    brightCyan: window.theme.colors.brightCyan || palette.brightCyan,
-                    brightWhite: window.theme.colors.brightWhite || palette.brightWhite
+                    background: palette.background,
+                    foreground: palette.foreground,
+                    cursor: palette.cursor,
+                    cursorAccent: palette.cursorAccent,
+                    selection: palette.selection,
+                    black: palette.black,
+                    red: palette.red,
+                    green: palette.green,
+                    yellow: palette.yellow,
+                    blue: palette.blue,
+                    magenta: palette.magenta,
+                    cyan: palette.cyan,
+                    white: palette.white,
+                    brightBlack: palette.brightBlack,
+                    brightRed: palette.brightRed,
+                    brightGreen: palette.brightGreen,
+                    brightYellow: palette.brightYellow,
+                    brightBlue: palette.brightBlue,
+                    brightMagenta: palette.brightMagenta,
+                    brightCyan: palette.brightCyan,
+                    brightWhite: palette.brightWhite
                 }
             });
             let fitAddon = new FitAddon();
             this.term.loadAddon(fitAddon);
             this.term.open(document.getElementById(opts.parentId));
-            this.term.loadAddon(new WebglAddon());
+            try {
+                this.term.loadAddon(new WebglAddon());
+                this.renderer = "webgl";
+            } catch(err) {
+                this.renderer = "canvas";
+            }
+            this.term.onResize(({cols, rows}) => {
+                this.onsizechange(cols, rows);
+            });
             this.term.attachCustomKeyEventHandler(e => {
                 window.keyboard.keydownHandler(e);
                 return true;
@@ -94,6 +117,7 @@ class Terminal {
 
                         // See #397
                         if (!window.settings.experimentalGlobeFeatures) return;
+                        if (!window.mods || !window.mods.globe) return;
                         let ips = args[1].match(/((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)/g);
                         if (ips !== null && ips.length >= 1) {
                             ips = ips.filter((val, index, self) => { return self.indexOf(val) === index; });
@@ -175,27 +199,10 @@ class Terminal {
 
             this.fit = () => {
                 this.lastRefit = Date.now();
-                let {cols, rows} = fitAddon.proposeDimensions();
-
-                // Apply custom fixes based on screen ratio, see #302
-                let w = screen.width;
-                let h = screen.height;
-                let x = 1;
-                let y = 0;
-
-                function gcd(a, b) {
-                    return (b == 0) ? a : gcd(b, a%b);
-                }
-                let d = gcd(w, h);
-
-                if (d === 100) { y = 1; x = 3;}
-                // if (d === 120) y = 1;
-                if (d === 256) x = 2;
-
-                if (window.settings.termFontSize < 15) y = y - 1;
-
-                cols = cols+x;
-                rows = rows+y;
+                let dimensions = fitAddon.proposeDimensions();
+                if (!dimensions) return;
+                let {cols, rows} = dimensions;
+                if (!(Number.isFinite(cols) && cols > 0 && Number.isFinite(rows) && rows > 0)) return;
 
                 if (this.term.cols !== cols || this.term.rows !== rows) {
                     this.resize(cols, rows);

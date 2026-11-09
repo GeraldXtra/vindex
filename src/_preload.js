@@ -209,11 +209,6 @@ const vindex = Object.freeze({
     getGlobeGrid: () => {
         return ipcRenderer.invoke("assets-globe-grid");
     },
-    getTerminalPalette: (baseColor, colorFilter) => {
-        requireValid(typeof baseColor === "string", "Base color must be a string");
-        requireValid(Array.isArray(colorFilter) && colorFilter.every(step => typeof step === "string"), "Color filter must be a list of strings");
-        return ipcRenderer.invoke("terminal-palette", baseColor, colorFilter);
-    },
     readDir: dir => {
         requireValid(typeof dir === "string", "Folder path must be a string");
         return ipcRenderer.invoke("fs-read-dir", dir);

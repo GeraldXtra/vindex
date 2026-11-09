@@ -209,8 +209,28 @@ function isPingTarget(value) {
     return typeof value === "string" && (net.isIPv4(value) || /^[A-Za-z0-9.-]{1,253}$/.test(value));
 }
 
-function isColorFilter(value) {
-    return Array.isArray(value) && value.length <= 32 && value.every(step => typeof step === "string" && step.length <= 100);
+const themeColorKeys = ["bg", "grid", "panel", "raised", "line", "strong", "text", "text2", "text3", "accent", "ink", "green", "red"];
+const themeTerminalKeys = ["background", "foreground", "cursor", "cursorAccent", "selection", "black", "red", "green", "yellow", "blue", "magenta", "cyan", "white", "brightBlack", "brightRed", "brightGreen", "brightYellow", "brightBlue", "brightMagenta", "brightCyan", "brightWhite"];
+
+function isHexColor(value) {
+    return typeof value === "string" && /^#[0-9A-Fa-f]{6}([0-9A-Fa-f]{2})?$/.test(value);
+}
+
+function isVindexTheme(name) {
+    try {
+        if (!isSafeFileName(name)) return false;
+        let file = path.join(themesDir, name+".json");
+        if (!fs.existsSync(file)) return false;
+        let content = fs.readFileSync(file, {encoding: "utf-8"});
+        if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+        let theme = JSON.parse(content);
+        if (theme === null || typeof theme !== "object") return false;
+        if (theme.vindex !== 1 || typeof theme.name !== "string" || theme.name === "") return false;
+        if (theme.colors === null || typeof theme.colors !== "object" || theme.terminal === null || typeof theme.terminal !== "object") return false;
+        return themeColorKeys.every(key => isHexColor(theme.colors[key])) && themeTerminalKeys.every(key => isHexColor(theme.terminal[key]));
+    } catch(err) {
+        return false;
+    }
 }
 
 function onWindowMessage(channel, isValid, listener) {
@@ -369,69 +389,6 @@ function watchDir(dir) {
         closeWatcher(watcher);
     }));
     dirWatcher = watcher;
-}
-
-const terminalBaseColors = {
-    black: "#2e3436",
-    red: "#cc0000",
-    green: "#4e9a06",
-    yellow: "#c4a000",
-    blue: "#3465a4",
-    magenta: "#75507b",
-    cyan: "#06989a",
-    white: "#d3d7cf",
-    brightBlack: "#555753",
-    brightRed: "#ef2929",
-    brightGreen: "#8ae234",
-    brightYellow: "#fce94f",
-    brightBlue: "#729fcf",
-    brightMagenta: "#ad7fa8",
-    brightCyan: "#34e2e2",
-    brightWhite: "#eeeeec"
-};
-
-function parseColorFilter(colorFilter) {
-    if (colorFilter.length === 0) return null;
-    let steps = [];
-    let isValid = colorFilter.every(step => {
-        let func = step.slice(0, step.indexOf("("));
-
-        switch(func) {
-            case "negate":
-            case "grayscale":
-                steps.push({
-                    func,
-                    arg: []
-                });
-                return true;
-            case "lighten":
-            case "darken":
-            case "saturate":
-            case "desaturate":
-            case "whiten":
-            case "blacken":
-            case "fade":
-            case "opaquer":
-            case "rotate":
-            case "mix":
-                break;
-            default:
-                return false;
-        }
-
-        let arg = step.slice(step.indexOf("(")+1, step.indexOf(")"));
-
-        if (typeof Number(arg) === "number") {
-            steps.push({
-                func,
-                arg: [Number(arg)]
-            });
-            return true;
-        }
-
-        return false;
-    });
-    return isValid ? steps : null;
 }
 
 let geoIPReader = null;
@@ -593,7 +550,7 @@ handleWindowRequest("config-write-window-state", args => args.length === 1 && ty
     return true;
 }, false);
 handleWindowRequest("theme-read", args => args.length === 1 && isSafeFileName(args[0]), (e, name) => readJSONFile(path.join(themesDir, name+".json")), null);
-handleWindowRequest("theme-list", hasNoArgs, () => listJSONNames(themesDir), []);
+handleWindowRequest("theme-list", hasNoArgs, async () => (await listJSONNames(themesDir)).filter(name => isVindexTheme(name)).sort(), []);
 handleWindowRequest("keyboard-read", args => args.length === 1 && isSafeFileName(args[0]), (e, name) => readJSONFile(path.join(kblayoutsDir, name+".json")), null);
 handleWindowRequest("keyboard-list", hasNoArgs, () => listJSONNames(kblayoutsDir), []);
 handleWindowRequest("boot-events-read", hasNoArgs, () => ({now: Math.round(process.uptime() * 1000), events: bootEvents.slice()}), {now: 0, events: []});
@@ -601,36 +558,6 @@ handleWindowRequest("os-uptime", hasNoArgs, () => os.uptime(), 0);
 handleWindowRequest("os-username", hasNoArgs, async () => (await require("username")()) || null, null);
 handleWindowRequest("assets-file-icons", hasNoArgs, () => require("./assets/icons/file-icons.json"), null);
 handleWindowRequest("assets-globe-grid", hasNoArgs, () => require("./assets/misc/grid.json"), null);
-handleWindowRequest("terminal-palette", args => args.length === 2 && typeof args[0] === "string" && args[0].length <= 100 && isColorFilter(args[1]), (e, baseColor, colorFilter) => {
-    let color = require("color");
-    let steps = parseColorFilter(colorFilter);
-    let colorify;
-    if (steps !== null) {
-        colorify = (base, target) => {
-            let newColor = color(base);
-            target = color(target);
-
-            for (let i = 0; i < steps.length; i++) {
-                if (steps[i].func === "mix") {
-                    newColor = newColor[steps[i].func](target, ...steps[i].arg);
-                } else {
-                    newColor = newColor[steps[i].func](...steps[i].arg);
-                }
-            }
-
-            return newColor.hex();
-        };
-    } else {
-        colorify = (base, target) => {
-            return color(base).grayscale().mix(color(target), 0.3).hex();
-        };
-    }
-    let palette = {};
-    Object.keys(terminalBaseColors).forEach(key => {
-        palette[key] = colorify(terminalBaseColors[key], baseColor);
-    });
-    return palette;
-}, null);
 handleWindowRequest("fs-read-dir", args => args.length === 1 && isSafePath(args[0]), async (e, dir) => {
     let names;
     try {
@@ -815,8 +742,8 @@ if (!fs.existsSync(settingsFile)) {
         shellArgs: '',
         cwd: electron.app.getPath("userData"),
         keyboard: "en-US",
-        theme: "tron",
-        termFontSize: 15,
+        theme: "signal",
+        termFontSize: 13,
         audio: true,
         audioVolume: 1.0,
         disableFeedbackAudio: false,
@@ -890,6 +817,22 @@ fs.readdirSync(innerFontsDir).forEach(e => {
     fs.writeFileSync(path.join(fontsDir, e), fs.readFileSync(path.join(innerFontsDir, e)));
 });
 
+try {
+    let content = fs.readFileSync(settingsFile, {encoding: "utf-8"});
+    if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
+    let settings = JSON.parse(content);
+    if (!isPlainObject(settings)) throw new Error(`${settingsFile} does not contain a JSON object`);
+    if (!isVindexTheme(settings.theme)) {
+        let oldTheme = settings.theme;
+        settings.theme = "signal";
+        fs.writeFileSync(settingsFile, JSON.stringify(settings, "", 4));
+        signale.info(`Theme setting changed to signal in ${settingsFile}`);
+        bootEvent("CONFIG", (typeof oldTheme === "string" && oldTheme !== "") ? "Theme " + oldTheme + " replaced by Signal" : "Theme set to Signal", "info");
+    }
+} catch(err) {
+    signale.error("Could not check the theme setting:", err);
+}
+
 // Version history logging
 const versionHistoryPath = path.join(electron.app.getPath("userData"), "versions_log.json");
 var versionHistory = fs.existsSync(versionHistoryPath) ? require(versionHistoryPath) : {};
@@ -951,7 +894,6 @@ function createWindow(settings) {
         display = electron.screen.getPrimaryDisplay();
     }
     let {x, y, width, height} = display.bounds;
-    width++; height++;
     win = new BrowserWindow({
         title: "Vindex",
         x,
@@ -964,6 +906,7 @@ function createWindow(settings) {
         fullscreen: settings.forceFullscreen || false,
         autoHideMenuBar: true,
         frame: settings.allowWindowed || false,
+        thickFrame: settings.allowWindowed || false,
         backgroundColor: '#000000',
         webPreferences: {
             devTools: true,

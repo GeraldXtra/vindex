@@ -1,0 +1,892 @@
+:root {
+    --vx-bg: #0F1113;
+    --vx-grid: #161A1D;
+    --vx-panel: #14171A;
+    --vx-raised: #1A1E22;
+    --vx-line: #252A30;
+    --vx-strong: #333A42;
+    --vx-text: #E6E8EA;
+    --vx-text2: #A3AAB2;
+    --vx-text3: #838B94;
+    --vx-accent: #3FD5C3;
+    --vx-ink: #06110F;
+    --vx-green: #7BD88F;
+    --vx-red: #FF7A85;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    overflow: hidden;
+    user-select: none;
+    background: var(--vx-bg);
+}
+
+body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    color: var(--vx-text);
+}
+
+html.vx-nocursor, html.vx-nocursor * {
+    cursor: none !important;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-button {
+    display: none;
+}
+
+::-webkit-scrollbar-track {
+    background: var(--vx-panel);
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--vx-strong);
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--vx-text3);
+}
+
+::-webkit-scrollbar-corner {
+    background: var(--vx-panel);
+}
+
+#vx-app [hidden] {
+    display: none !important;
+}
+
+#vx-app {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    background-color: var(--vx-bg);
+    background-image: linear-gradient(var(--vx-grid) 1px, transparent 1px), linear-gradient(90deg, var(--vx-grid) 1px, transparent 1px);
+    background-size: 24px 24px;
+    color: var(--vx-text);
+    font-family: 'Barlow Semi Condensed', 'Segoe UI', sans-serif;
+    font-size: 12px;
+    line-height: 16px;
+    visibility: hidden;
+    opacity: 0;
+}
+
+#vx-app.vx-ready {
+    visibility: visible;
+    opacity: 1;
+    transition: opacity 300ms;
+}
+
+#vx-app button {
+    font: inherit;
+    color: inherit;
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    cursor: pointer;
+    text-align: left;
+}
+
+#vx-app .vx-header {
+    min-height: 36px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    overflow: hidden;
+    border-bottom: 1px solid var(--vx-line);
+    background: var(--vx-panel);
+}
+
+#vx-app .vx-brand {
+    flex: 0 0 262px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 12px;
+    border-right: 1px solid var(--vx-line);
+}
+
+#vx-app .vx-logo {
+    display: block;
+    flex: 0 0 auto;
+}
+
+#vx-app .vx-logo-shape {
+    fill: none;
+    stroke: var(--vx-accent);
+}
+
+#vx-app .vx-wordmark {
+    font-family: Doto, 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+}
+
+#vx-app .vx-version {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-tabs {
+    display: flex;
+    align-items: stretch;
+}
+
+#vx-app .vx-tab {
+    height: 35px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 14px;
+    border-bottom: 2px solid transparent;
+    border-right: 1px solid var(--vx-line);
+    background: transparent;
+    color: var(--vx-text2);
+    white-space: nowrap;
+}
+
+#vx-app .vx-tab.vx-tab-active {
+    border-bottom-color: var(--vx-accent);
+    background: var(--vx-bg);
+    color: var(--vx-text);
+}
+
+#vx-app .vx-tab-mark {
+    flex: 0 0 auto;
+    width: 6px;
+    height: 6px;
+    box-sizing: border-box;
+    border: 1px solid var(--vx-text3);
+    background: transparent;
+}
+
+#vx-app .vx-tab-active .vx-tab-mark {
+    border-color: var(--vx-accent);
+    background: var(--vx-accent);
+}
+
+#vx-app .vx-tab-open .vx-tab-mark {
+    border-color: var(--vx-green);
+    background: var(--vx-green);
+}
+
+#vx-app .vx-tab-number, #vx-app .vx-tab-meta {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-tab-name {
+    font-weight: 600;
+    letter-spacing: 0.1em;
+}
+
+#vx-app .vx-new-tab {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 35px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#vx-app .vx-new-tab-icon {
+    fill: none;
+    stroke: var(--vx-text3);
+}
+
+#vx-app .vx-spacer {
+    flex: 1 1 auto;
+}
+
+#vx-app .vx-status {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 18px;
+    padding: 0 14px;
+    white-space: nowrap;
+}
+
+#vx-app .vx-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+#vx-app .vx-stat-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-uptime {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+#vx-app .vx-clock {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px;
+}
+
+#vx-app .vx-clock-utc {
+    color: var(--vx-text2);
+}
+
+#vx-app .vx-battery {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#vx-app .vx-battery-bars {
+    display: flex;
+    gap: 2px;
+}
+
+#vx-app .vx-battery-bar {
+    width: 4px;
+    height: 10px;
+    box-sizing: border-box;
+    border: 1px solid var(--vx-strong);
+}
+
+#vx-app .vx-battery-bar.vx-on {
+    border-color: var(--vx-accent);
+    background: var(--vx-accent);
+}
+
+#vx-app .vx-battery-level {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+}
+
+#vx-app .vx-battery-state {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-theme {
+    height: 24px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border: 1px solid var(--vx-line);
+    color: var(--vx-text2);
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+}
+
+#vx-app .vx-theme-swatch {
+    width: 8px;
+    height: 8px;
+    background: var(--vx-accent);
+}
+
+#vx-app .vx-main {
+    flex: 1 1 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: nowrap;
+    gap: 6px;
+    padding: 6px;
+    min-height: 0;
+}
+
+#vx-app .vx-column {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+#vx-app .vx-column-left {
+    flex: 1 1 256px;
+}
+
+#vx-app .vx-column-centre {
+    flex: 999 1 560px;
+}
+
+#vx-app .vx-column-right {
+    flex: 1 1 352px;
+}
+
+#vx-app .vx-panel {
+    position: relative;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid var(--vx-line);
+    background: var(--vx-panel);
+}
+
+#vx-app .vx-panel-fill {
+    flex: 1 1 0px;
+}
+
+#vx-app .vx-panel-explorer {
+    min-height: 200px;
+}
+
+#vx-app .vx-panel-processes {
+    min-height: 90px;
+}
+
+#vx-app .vx-panel-terminal {
+    min-height: 260px;
+}
+
+#vx-app .vx-corner {
+    position: absolute;
+    width: 8px;
+    height: 8px;
+}
+
+#vx-app .vx-corner-tl {
+    top: -1px;
+    left: -1px;
+    border-top: 1px solid var(--vx-accent);
+    border-left: 1px solid var(--vx-accent);
+}
+
+#vx-app .vx-corner-tr {
+    top: -1px;
+    right: -1px;
+    border-top: 1px solid var(--vx-accent);
+    border-right: 1px solid var(--vx-accent);
+}
+
+#vx-app .vx-corner-bl {
+    bottom: -1px;
+    left: -1px;
+    border-bottom: 1px solid var(--vx-accent);
+    border-left: 1px solid var(--vx-accent);
+}
+
+#vx-app .vx-corner-br {
+    bottom: -1px;
+    right: -1px;
+    border-bottom: 1px solid var(--vx-accent);
+    border-right: 1px solid var(--vx-accent);
+}
+
+#vx-app .vx-panel-head {
+    height: 26px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 12px;
+}
+
+#vx-app .vx-panel-number {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-accent);
+}
+
+#vx-app .vx-panel-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--vx-text2);
+}
+
+#vx-app .vx-rule {
+    flex: 1 1 auto;
+    min-width: 10px;
+    height: 0;
+    border-top: 1px dashed var(--vx-line);
+}
+
+#vx-app .vx-placeholder {
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 12px 10px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-panel-fill > .vx-placeholder {
+    flex: 1 1 0px;
+    min-height: 0;
+}
+
+#vx-app .vx-panel-repository > .vx-placeholder {
+    height: 104px;
+}
+
+#vx-app .vx-panel-security > .vx-placeholder {
+    height: 145px;
+}
+
+#vx-app .vx-panel-system > .vx-placeholder {
+    height: 110px;
+}
+
+#vx-app .vx-panel-cpu > .vx-placeholder {
+    height: 141px;
+}
+
+#vx-app .vx-panel-network > .vx-placeholder {
+    height: 205px;
+}
+
+#vx-app .vx-footer {
+    min-height: 26px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 4px 16px;
+    padding: 0 12px;
+    border-top: 1px solid var(--vx-line);
+    background: var(--vx-panel);
+}
+
+#vx-app .vx-footer-group {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 18px;
+}
+
+#vx-app .vx-footer-group-right {
+    gap: 2px;
+}
+
+#vx-app .vx-footer-text {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-term-head {
+    height: 30px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 0 10px 0 12px;
+    border-bottom: 1px solid var(--vx-line);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#vx-app .vx-term-shell {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-chip {
+    height: 18px;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding: 0 6px;
+    border: 1px solid var(--vx-line);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-text2);
+}
+
+#vx-app #vx-term-body {
+    position: relative;
+    flex: 1 1 0px;
+    min-height: 0;
+    overflow: hidden;
+    background: var(--vx-bg);
+}
+
+#vx-app .vx-term {
+    position: absolute;
+    top: 8px;
+    right: 6px;
+    bottom: 8px;
+    left: 12px;
+    padding: 0;
+    opacity: 0;
+    pointer-events: none;
+    z-index: 0;
+}
+
+#vx-app .vx-term.active {
+    opacity: 1;
+    pointer-events: auto;
+    z-index: 1;
+}
+
+#vx-app .xterm .xterm-viewport {
+    overflow-y: hidden;
+    background-color: transparent;
+}
+
+#vx-app .vx-term-status {
+    height: 22px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: stretch;
+    border-top: 1px solid var(--vx-line);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#vx-app .vx-term-badge {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    background: var(--vx-accent);
+    color: var(--vx-ink);
+    font-weight: 700;
+}
+
+#vx-app .vx-term-cwd {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-right: 1px solid var(--vx-line);
+    color: var(--vx-text2);
+}
+
+#vx-app .vx-term-cell {
+    display: flex;
+    align-items: center;
+    padding: 0 10px;
+    border-left: 1px solid var(--vx-line);
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-kb-head {
+    height: 24px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--vx-line);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#vx-app .vx-kb-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+#vx-app .vx-kb-layout {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-inds {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+#vx-app .vx-ind {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-ind-mark {
+    width: 5px;
+    height: 5px;
+    box-sizing: border-box;
+    border: 1px solid var(--vx-text3);
+    background: transparent;
+}
+
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-ctrl-on="true"]) .vx-ind[data-mod="ctrl"],
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-alt-on="true"]) .vx-ind[data-mod="alt"],
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-shift-on="true"]) .vx-ind[data-mod="shift"],
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-caps-lck-on="true"]) .vx-ind[data-mod="caps"],
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-fn-on="true"]) .vx-ind[data-mod="fn"] {
+    color: var(--vx-text2);
+}
+
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-ctrl-on="true"]) .vx-ind[data-mod="ctrl"] > .vx-ind-mark,
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-alt-on="true"]) .vx-ind[data-mod="alt"] > .vx-ind-mark,
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-shift-on="true"]) .vx-ind[data-mod="shift"] > .vx-ind-mark,
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-caps-lck-on="true"]) .vx-ind[data-mod="caps"] > .vx-ind-mark,
+#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-fn-on="true"]) .vx-ind[data-mod="fn"] > .vx-ind-mark {
+    border-color: var(--vx-accent);
+    background: var(--vx-accent);
+}
+
+#vx-app #keyboard {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 6px 12px;
+}
+
+#vx-app #keyboard[data-password-mode="true"] {
+    opacity: 0.5;
+    cursor: none;
+}
+
+#vx-app #keyboard > .keyboard_row {
+    --u: calc((100% - 60px) / 16);
+    display: flex;
+    flex-direction: row;
+    gap: 4px;
+    height: 34px;
+    align-items: flex-start;
+}
+
+#vx-app #keyboard .keyboard_key {
+    --k: 1;
+    flex: 0 1 calc(var(--u) * var(--k) + 4px * (var(--k) - 1));
+    min-width: 0;
+    height: 34px;
+    box-sizing: border-box;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    border: 1px solid var(--vx-line);
+    background: transparent;
+    color: var(--vx-text2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    font-weight: 400;
+    letter-spacing: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+#vx-app #keyboard[data-password-mode="true"] .keyboard_key {
+    cursor: none;
+}
+
+#vx-app #keyboard .keyboard_key > h1,
+#vx-app #keyboard .keyboard_key > h2,
+#vx-app #keyboard .keyboard_key > h3,
+#vx-app #keyboard .keyboard_key > h4,
+#vx-app #keyboard .keyboard_key > h5 {
+    margin: 0;
+    padding: 0;
+    font-weight: 400;
+}
+
+#vx-app #keyboard .keyboard_key > h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0;
+}
+
+#vx-app #keyboard .keyboard_key > h2 {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    line-height: 10px;
+    letter-spacing: 0;
+    color: var(--vx-text3);
+}
+
+#vx-app #keyboard .keyboard_key > h3,
+#vx-app #keyboard .keyboard_key > h4,
+#vx-app #keyboard .keyboard_key > h5 {
+    display: none;
+}
+
+#vx-app #keyboard .keyboard_key > svg {
+    flex: 0 0 auto;
+    width: 18px;
+    height: 18px;
+    fill: currentColor;
+}
+
+#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:last-child {
+    --k: 2;
+}
+
+#vx-app #keyboard > [id="row_1"] > .keyboard_key:first-child,
+#vx-app #keyboard > [id="row_2"] > .keyboard_key:first-child {
+    --k: 1.75;
+}
+
+#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child,
+#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child {
+    --k: 2.25;
+}
+
+#vx-app #keyboard > [id="row_3"] > .keyboard_key:first-child,
+#vx-app #keyboard > [id="row_3"] > .keyboard_key:nth-last-child(2) {
+    --k: 1.5;
+}
+
+#vx-app #keyboard > [id="row_3"] > .keyboard_key:last-child {
+    margin-right: calc(var(--u) + 4px);
+}
+
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(1),
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(2),
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(4),
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(5) {
+    --k: 1.25;
+}
+
+#vx-app #keyboard > [id="row_space"] > #keyboard_spacebar {
+    --k: 8;
+}
+
+#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:first-child,
+#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:last-child,
+#vx-app #keyboard > [id="row_1"] > .keyboard_key:first-child,
+#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child,
+#vx-app #keyboard > [id="row_2"] > .keyboard_key:first-child,
+#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child,
+#vx-app #keyboard > [id="row_3"] > .keyboard_key:first-child,
+#vx-app #keyboard > [id="row_3"] > .keyboard_key:nth-last-child(2),
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(1),
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(2),
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(4),
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(5) {
+    justify-content: flex-start;
+    padding: 0 8px;
+    color: var(--vx-text3);
+}
+
+#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:first-child > h1,
+#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:last-child > h1,
+#vx-app #keyboard > [id="row_1"] > .keyboard_key:first-child > h1,
+#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child > h1,
+#vx-app #keyboard > [id="row_2"] > .keyboard_key:first-child > h1,
+#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child > h1,
+#vx-app #keyboard > [id="row_3"] > .keyboard_key:first-child > h1,
+#vx-app #keyboard > [id="row_3"] > .keyboard_key:nth-last-child(2) > h1,
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(1) > h1,
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(2) > h1,
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(4) > h1,
+#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(5) > h1 {
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+}
+
+#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child {
+    height: 38px;
+    border-bottom: 0;
+    z-index: 1;
+}
+
+#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child {
+    border-top: 0;
+}
+
+#vx-app #keyboard:not([data-password-mode="true"]) > .keyboard_row > .keyboard_key.active,
+#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- CAPSLCK: ON"],
+#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- FN: ON"] {
+    border-color: var(--vx-accent);
+    background: var(--vx-accent);
+    color: var(--vx-ink);
+}
+
+#vx-app #keyboard:not([data-password-mode="true"]) > .keyboard_row > .keyboard_key.active > h2,
+#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- CAPSLCK: ON"] > h2,
+#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- FN: ON"] > h2 {
+    color: inherit;
+}
+
+#vx-app #keyboard:not([data-password-mode="true"]) > .keyboard_row > .keyboard_key.blink {
+    animation: vx-key-blink 500ms linear infinite;
+}
+
+@keyframes vx-key-blink {
+    0% { background-color: transparent; }
+    50% { background-color: var(--vx-accent); }
+    100% { background-color: transparent; }
+}
+
+#vx-app #keyboard[data-is-shift-on="true"] > .keyboard_row > .keyboard_key:has(> h2:not(:empty)),
+#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key:has(> h2:not(:empty)),
+#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key:has(> h4:not(:empty)) {
+    justify-content: center;
+}
+
+#vx-app #keyboard[data-is-shift-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty),
+#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty) {
+    position: static;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    line-height: inherit;
+    letter-spacing: 0;
+    color: inherit;
+}
+
+#vx-app #keyboard[data-is-shift-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty) + h1,
+#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty) + h1 {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    font-weight: 400;
+    line-height: 10px;
+    letter-spacing: 0;
+    color: var(--vx-text3);
+}
+
+#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) {
+    display: block;
+    position: static;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    letter-spacing: 0;
+}
+
+#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) ~ h2,
+#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) ~ h1 {
+    display: none;
+}

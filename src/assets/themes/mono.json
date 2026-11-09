@@ -1,0 +1,42 @@
+{
+    "vindex": 1,
+    "name": "Mono",
+    "colors": {
+        "bg": "#0F1113",
+        "grid": "#16191C",
+        "panel": "#14171A",
+        "raised": "#1A1E22",
+        "line": "#252A30",
+        "strong": "#333A42",
+        "text": "#E6E8EA",
+        "text2": "#A3AAB2",
+        "text3": "#838B94",
+        "accent": "#F2F3F4",
+        "ink": "#0F1113",
+        "green": "#E6E8EA",
+        "red": "#8E959D"
+    },
+    "terminal": {
+        "background": "#0F1113",
+        "foreground": "#E6E8EA",
+        "cursor": "#F2F3F4",
+        "cursorAccent": "#0F1113",
+        "selection": "#F2F3F440",
+        "black": "#333A42",
+        "red": "#B9BFC5",
+        "green": "#E6E8EA",
+        "yellow": "#CDD2D7",
+        "blue": "#9EA5AD",
+        "magenta": "#B0B6BD",
+        "cyan": "#D9DDE1",
+        "white": "#A3AAB2",
+        "brightBlack": "#838B94",
+        "brightRed": "#D4D8DC",
+        "brightGreen": "#F2F3F4",
+        "brightYellow": "#E1E4E7",
+        "brightBlue": "#BCC1C7",
+        "brightMagenta": "#C9CDD2",
+        "brightCyan": "#ECEEF0",
+        "brightWhite": "#F2F3F4"
+    }
+}
