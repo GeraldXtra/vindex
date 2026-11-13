@@ -143,22 +143,30 @@ html.vx-nocursor, html.vx-nocursor * {
 }
 
 #vx-app .vx-tabs {
+    min-width: 0;
     display: flex;
     align-items: stretch;
+    overflow: hidden;
 }
 
 #vx-app .vx-tab {
+    flex: 0 1 auto;
+    min-width: 0;
     height: 35px;
     box-sizing: border-box;
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
+    align-content: flex-start;
     gap: 8px;
     padding: 0 14px;
     border-bottom: 2px solid transparent;
     border-right: 1px solid var(--vx-line);
     background: transparent;
     color: var(--vx-text2);
+    line-height: 33px;
     white-space: nowrap;
+    overflow: hidden;
 }
 
 #vx-app .vx-tab.vx-tab-active {
@@ -187,14 +195,21 @@ html.vx-nocursor, html.vx-nocursor * {
 }
 
 #vx-app .vx-tab-number, #vx-app .vx-tab-meta {
+    flex: 0 0 auto;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     color: var(--vx-text3);
 }
 
 #vx-app .vx-tab-name {
+    flex: 0 0 auto;
     font-weight: 600;
     letter-spacing: 0.1em;
+}
+
+#vx-app .vx-tabs.vx-tabs-compact > .vx-tab:not(.vx-tab-active) > .vx-tab-meta,
+#vx-app .vx-tabs.vx-tabs-tight > .vx-tab > .vx-tab-meta {
+    display: none;
 }
 
 #vx-app .vx-new-tab {
@@ -216,6 +231,7 @@ html.vx-nocursor, html.vx-nocursor * {
 }
 
 #vx-app .vx-status {
+    flex: 0 0 auto;
     display: flex;
     flex-wrap: nowrap;
     align-items: center;
@@ -321,6 +337,7 @@ html.vx-nocursor, html.vx-nocursor * {
     display: flex;
     flex-direction: column;
     gap: 6px;
+    overflow: hidden;
 }
 
 #vx-app .vx-column-left {
@@ -521,6 +538,10 @@ html.vx-nocursor, html.vx-nocursor * {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     color: var(--vx-text2);
+}
+
+#vx-app .vx-chip:empty {
+    display: none;
 }
 
 #vx-app #vx-term-body {
@@ -888,5 +909,28 @@ html.vx-nocursor, html.vx-nocursor * {
 
 #vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) ~ h2,
 #vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) ~ h1 {
+    display: none;
+}
+
+#vx-app #keyboard > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) > h2 {
+    display: none;
+}
+
+#vx-app #keyboard:is([data-is-shift-on="true"], [data-is-caps-lck-on="true"]) > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) {
+    justify-content: flex-start;
+}
+
+#vx-app #keyboard:is([data-is-shift-on="true"], [data-is-caps-lck-on="true"]) > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) > h2:not(:empty) {
+    display: block;
+    position: static;
+    font-family: 'Barlow Semi Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: inherit;
+    letter-spacing: 0.12em;
+    color: inherit;
+}
+
+#vx-app #keyboard:is([data-is-shift-on="true"], [data-is-caps-lck-on="true"]) > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) > h2:not(:empty) + h1 {
     display: none;
 }

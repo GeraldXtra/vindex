@@ -289,13 +289,49 @@ function startBattery() {
     });
 }
 
+async function readKeyboardLayoutSafely(name) {
+    if (typeof name !== "string") return null;
+    try {
+        let layout = await window.vindex.readKeyboardLayout(name);
+        return (layout !== null && typeof layout === "object") ? layout : null;
+    } catch(err) {
+        return null;
+    }
+}
+
+function buildKeyboard(layout) {
+    document.getElementById("keyboard").textContent = "";
+    window.keyboard = new Keyboard({
+        layout,
+        container: "keyboard"
+    });
+}
+
+async function startKeyboard() {
+    let wanted = window.settings.keyboard;
+    let layout = await readKeyboardLayoutSafely(wanted);
+    if (layout !== null) {
+        try {
+            buildKeyboard(layout);
+            return null;
+        } catch(err) {
+            window.vindex.log("error", "Could not build the keyboard layout " + String(wanted) + ": " + String((err && err.message) || err));
+        }
+    }
+    if (wanted === "en-US") throw new Error("Could not load the keyboard layout en-US.");
+    let fallback = await readKeyboardLayoutSafely("en-US");
+    if (fallback === null) throw new Error("Could not load the keyboard layout " + String(wanted) + ".");
+    buildKeyboard(fallback);
+    window.settings.keyboard = "en-US";
+    window.vindex.log("error", "Keyboard layout " + String(wanted) + " could not be used, using en-US");
+    return String(wanted);
+}
+
 async function initUI() {
     let settings = window.settings;
 
     document.getElementById("vx-version").textContent = window.vindex.appVersion || "";
     document.getElementById("vx-theme-name").textContent = window.theme.name.toUpperCase();
-    document.getElementById("vx-kb-layout").textContent = settings.keyboard;
-    document.getElementById("vx-term-input").textContent = "INPUT " + settings.keyboard;
     document.getElementById("vx-term-shell").textContent = shellFileName();
     document.getElementById("vx-term-badge").textContent = shellBaseName().toUpperCase();
     let chrome = navigator.userAgent.match(/Chrome\/(\d+)/);
@@ -306,12 +342,9 @@ async function initUI() {
     startClocks();
     startBattery();
 
-    let layout = await window.vindex.readKeyboardLayout(settings.keyboard);
-    if (layout === null) throw new Error("Could not load the keyboard layout " + settings.keyboard + ".");
-    window.keyboard = new Keyboard({
-        layout,
-        container: "keyboard"
-    });
+    let unusableLayout = await startKeyboard();
+    document.getElementById("vx-kb-layout").textContent = settings.keyboard;
+    document.getElementById("vx-term-input").textContent = "INPUT " + settings.keyboard;
 
     let fontSize = terminalFontSize();
     await Promise.all([
@@ -339,6 +372,9 @@ async function initUI() {
     showShellRenderer(window.term[0].renderer);
 
     window.renderShellTabs();
+    let tabObserver = new ResizeObserver(() => fitShellTabs());
+    tabObserver.observe(document.querySelector("#vx-app .vx-header"));
+    tabObserver.observe(document.querySelector("#vx-app .vx-status"));
 
     window.onmouseup = e => {
         if (window.keyboard.linkedToTerm) window.term[window.currentTerm].term.focus();
@@ -354,6 +390,13 @@ async function initUI() {
         active.fit();
         active.term.focus();
     });
+    if (unusableLayout !== null) {
+        new Modal({
+            type: "warning",
+            title: "Keyboard",
+            message: "Could not load the keyboard layout " + window._escapeHtml(unusableLayout) + ". Using en-US instead."
+        });
+    }
 }
 
 function showInterfaceError(err) {
@@ -367,6 +410,16 @@ function showInterfaceError(err) {
     } finally {
         document.getElementById("vx-app").classList.add("vx-ready");
     }
+}
+
+function fitShellTabs() {
+    let nav = document.getElementById("vx-tabs");
+    let wrapped = () => Array.from(nav.querySelectorAll(".vx-tab")).some(tab => tab.scrollHeight > tab.clientHeight);
+    nav.classList.remove("vx-tabs-compact", "vx-tabs-tight");
+    if (!wrapped()) return;
+    nav.classList.add("vx-tabs-compact");
+    if (!wrapped()) return;
+    nav.classList.add("vx-tabs-tight");
 }
 
 window.renderShellTabs = () => {
@@ -411,6 +464,7 @@ window.renderShellTabs = () => {
         let slot = freeShellSlot();
         if (slot !== null) window.focusShellTab(slot);
     };
+    fitShellTabs();
 };
 
 window.themeChanger = theme => {
@@ -423,11 +477,7 @@ window.themeChanger = theme => {
 window.remakeKeyboard = async layout => {
     let layoutData = await window.vindex.readKeyboardLayout(layout);
     if (layoutData === null) throw new Error(`Could not load the keyboard layout "${layout}".`);
-    document.getElementById("keyboard").textContent = "";
-    window.keyboard = new Keyboard({
-        layout: layoutData,
-        container: "keyboard"
-    });
+    buildKeyboard(layoutData);
     window.vindex.setKbOverride(layout);
     document.getElementById("vx-kb-layout").textContent = layout;
     document.getElementById("vx-term-input").textContent = "INPUT " + layout;

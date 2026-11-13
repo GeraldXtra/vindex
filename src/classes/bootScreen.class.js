@@ -441,9 +441,16 @@ class BootScreen {
 
     async checkKeyboard() {
         let name = this.settings.keyboard;
-        let layout = await window.vindex.readKeyboardLayout(name);
+        let layout = null;
+        if (typeof name === "string") {
+            try {
+                layout = await window.vindex.readKeyboardLayout(name);
+            } catch(err) {
+                layout = null;
+            }
+        }
         if (layout) return [["Keyboard layout " + name + " ready", "ok"]];
-        return [["Keyboard layout " + name + " missing", "fail"]];
+        return [["Keyboard layout " + String(name) + " could not be read", "fail"]];
     }
 
     checkAudio() {
