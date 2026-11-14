@@ -704,8 +704,8 @@ function copyOldUserData(oldDir) {
             if (!isValid(value)) return skipped.push(`${name} (not ${kind})`);
             let note = "";
             if (name === "settings.json" && typeof value.cwd === "string" && path.isAbsolute(value.cwd) && isSameFolder(value.cwd, oldDir)) {
-                value.cwd = newDir;
-                note = " (cwd set to the Vindex folder)";
+                value.cwd = os.homedir();
+                note = " (cwd set to the home folder)";
             }
             fs.writeFileSync(to, JSON.stringify(value, "", 4), {flag: "wx"});
             copied.push(name+note);
@@ -740,7 +740,7 @@ if (!fs.existsSync(settingsFile)) {
     fs.writeFileSync(settingsFile, JSON.stringify({
         shell: (process.platform === "win32") ? "powershell.exe" : "bash",
         shellArgs: '',
-        cwd: electron.app.getPath("userData"),
+        cwd: os.homedir(),
         keyboard: "en-US",
         theme: "signal",
         termFontSize: 13,
@@ -822,15 +822,25 @@ try {
     if (content.charCodeAt(0) === 0xFEFF) content = content.slice(1);
     let settings = JSON.parse(content);
     if (!isPlainObject(settings)) throw new Error(`${settingsFile} does not contain a JSON object`);
+    let changes = [];
     if (!isVindexTheme(settings.theme)) {
         let oldTheme = settings.theme;
         settings.theme = "signal";
+        changes.push(["Theme setting changed to signal", (typeof oldTheme === "string" && oldTheme !== "") ? "Theme " + oldTheme + " replaced by Signal" : "Theme set to Signal"]);
+    }
+    if (typeof settings.cwd === "string" && settings.cwd !== "" && isSameFolder(settings.cwd, electron.app.getPath("userData"))) {
+        settings.cwd = os.homedir();
+        changes.push(["cwd setting changed to the home folder", "Start folder moved to the home folder"]);
+    }
+    if (changes.length > 0) {
         fs.writeFileSync(settingsFile, JSON.stringify(settings, "", 4));
-        signale.info(`Theme setting changed to signal in ${settingsFile}`);
-        bootEvent("CONFIG", (typeof oldTheme === "string" && oldTheme !== "") ? "Theme " + oldTheme + " replaced by Signal" : "Theme set to Signal", "info");
+        changes.forEach(([logMessage, bootMessage]) => {
+            signale.info(`${logMessage} in ${settingsFile}`);
+            bootEvent("CONFIG", bootMessage, "info");
+        });
     }
 } catch(err) {
-    signale.error("Could not check the theme setting:", err);
+    signale.error("Could not check the settings file:", err);
 }
 
 // Version history logging

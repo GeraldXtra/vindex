@@ -12,6 +12,7 @@
     --vx-ink: #06110F;
     --vx-green: #7BD88F;
     --vx-red: #FF7A85;
+    --vx-warn: #E8B84A;
 }
 
 html, body {
@@ -933,4 +934,202 @@ html.vx-nocursor, html.vx-nocursor * {
 
 #vx-app #keyboard:is([data-is-shift-on="true"], [data-is-caps-lck-on="true"]) > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) > h2:not(:empty) + h1 {
     display: none;
+}
+
+#vx-app.vx-ready.vx-intro {
+    transition: none;
+}
+
+#vx-app.vx-intro .vx-header {
+    position: relative;
+    overflow: visible;
+    animation: vx-bp-shell 360ms linear 1000ms both;
+}
+
+#vx-app.vx-intro .vx-footer {
+    position: relative;
+    animation: vx-bp-shell 360ms linear 1000ms both;
+}
+
+#vx-app.vx-intro .vx-header > .vx-brand {
+    animation: vx-i-show 1ms linear 700ms both;
+}
+
+#vx-app.vx-intro .vx-header > :not(.vx-brand),
+#vx-app.vx-intro .vx-footer > * {
+    animation: vx-i-show 360ms linear 1000ms both;
+}
+
+#vx-app.vx-intro .vx-header::after,
+#vx-app.vx-intro .vx-footer::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: var(--vx-accent);
+    pointer-events: none;
+    transform-origin: 50% 50%;
+}
+
+#vx-app.vx-intro .vx-header::after {
+    bottom: -1px;
+    animation: vx-i-grow 420ms cubic-bezier(0.22, 1, 0.36, 1) 500ms both, vx-i-hide 360ms linear 1000ms forwards;
+}
+
+#vx-app.vx-intro .vx-footer::after {
+    top: -1px;
+    animation: vx-i-grow 420ms cubic-bezier(0.22, 1, 0.36, 1) 560ms both, vx-i-hide 360ms linear 1000ms forwards;
+}
+
+#vx-app.vx-intro .vx-panel {
+    animation: vx-bp-shell 360ms linear var(--vx-f) both;
+}
+
+#vx-app.vx-intro .vx-panel > * {
+    animation: vx-i-show 360ms linear var(--vx-f) both;
+}
+
+#vx-app.vx-intro .vx-panel::before {
+    content: "";
+    position: absolute;
+    left: -1px;
+    top: -1px;
+    right: -1px;
+    bottom: -1px;
+    z-index: 3;
+    pointer-events: none;
+    background: linear-gradient(var(--vx-accent), var(--vx-accent)) left top / 0% 1px no-repeat, linear-gradient(var(--vx-accent), var(--vx-accent)) right top / 1px 0% no-repeat, linear-gradient(var(--vx-accent), var(--vx-accent)) right bottom / 0% 1px no-repeat, linear-gradient(var(--vx-accent), var(--vx-accent)) left bottom / 1px 0% no-repeat;
+    animation: vx-bp-draw 520ms linear var(--vx-d) both, vx-i-hide 300ms linear var(--vx-f) forwards;
+}
+
+#vx-app.vx-intro .vx-panel-explorer {
+    --vx-d: 620ms;
+    --vx-f: 1100ms;
+}
+
+#vx-app.vx-intro .vx-panel-terminal {
+    --vx-d: 680ms;
+    --vx-f: 1160ms;
+}
+
+#vx-app.vx-intro .vx-panel-system {
+    --vx-d: 740ms;
+    --vx-f: 1220ms;
+}
+
+#vx-app.vx-intro .vx-panel-repository {
+    --vx-d: 800ms;
+    --vx-f: 1280ms;
+}
+
+#vx-app.vx-intro .vx-panel-keyboard {
+    --vx-d: 860ms;
+    --vx-f: 1340ms;
+}
+
+#vx-app.vx-intro .vx-panel-cpu {
+    --vx-d: 920ms;
+    --vx-f: 1400ms;
+}
+
+#vx-app.vx-intro .vx-panel-security {
+    --vx-d: 980ms;
+    --vx-f: 1460ms;
+}
+
+#vx-app.vx-intro .vx-panel-network {
+    --vx-d: 1040ms;
+    --vx-f: 1520ms;
+}
+
+#vx-app.vx-intro .vx-panel-processes {
+    --vx-d: 1100ms;
+    --vx-f: 1580ms;
+}
+
+#vx-app .vx-welcome {
+    position: absolute;
+    top: 12px;
+    right: 26px;
+    z-index: 2;
+    width: 300px;
+    max-width: calc(100% - 38px);
+    box-sizing: border-box;
+    padding: 12px 14px 4px 16px;
+    border: 1px solid var(--vx-line);
+    background: var(--vx-raised);
+    box-shadow: 0 8px 24px color-mix(in srgb, var(--vx-bg) 60%, transparent);
+    pointer-events: none;
+    animation: vx-card-in 380ms cubic-bezier(0.22, 1, 0.36, 1) both, vx-card-out 320ms cubic-bezier(0.65, 0, 0.35, 1) 2800ms forwards;
+}
+
+#vx-app .vx-welcome-label {
+    font-size: 10px;
+    line-height: 12px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-welcome-name {
+    margin-top: 4px;
+    font-family: Doto, 'JetBrains Mono', monospace;
+    font-size: 22px;
+    line-height: 24px;
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--vx-text);
+}
+
+#vx-app .vx-welcome-note {
+    margin-top: 4px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    line-height: 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--vx-text3);
+}
+
+@keyframes vx-i-show {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes vx-i-hide {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes vx-i-grow {
+    from { transform: scaleX(0); }
+    to { transform: scaleX(1); }
+}
+
+@keyframes vx-bp-draw {
+    0% { background-size: 0% 1px, 1px 0%, 0% 1px, 1px 0%; }
+    25% { background-size: 100% 1px, 1px 0%, 0% 1px, 1px 0%; }
+    50% { background-size: 100% 1px, 1px 100%, 0% 1px, 1px 0%; }
+    75% { background-size: 100% 1px, 1px 100%, 100% 1px, 1px 0%; }
+    100% { background-size: 100% 1px, 1px 100%, 100% 1px, 1px 100%; }
+}
+
+@keyframes vx-bp-shell {
+    from { border-color: transparent; background-color: transparent; }
+}
+
+@keyframes vx-card-in {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0px); }
+}
+
+@keyframes vx-card-out {
+    from { opacity: 1; transform: translateY(0px); }
+    to { opacity: 0; transform: translateY(-8px); }
 }

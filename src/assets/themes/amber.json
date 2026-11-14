@@ -38,5 +38,12 @@
         "brightMagenta": "#DAB2F2",
         "brightCyan": "#7DE5D8",
         "brightWhite": "#EEE7DF"
+    },
+    "rain": {
+        "hue": 10,
+        "span": 46,
+        "saturation": 92,
+        "lightness": 58,
+        "head": 90
     }
 }

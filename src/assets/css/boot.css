@@ -5,6 +5,9 @@ section#boot_screen {
     --vx-s: 1;
     --vx-x: 0px;
     --vx-y: 0px;
+    --vx-rain-s: 88%;
+    --vx-rain-l: 62%;
+    --vx-rain-hl: 92%;
     position: fixed;
     left: 0;
     top: 0;
@@ -14,16 +17,12 @@ section#boot_screen {
     padding: 0;
     overflow: hidden;
     z-index: 9999999;
-    background: #0F1113;
-    color: #E6E8EA;
+    background: var(--vx-bg);
+    color: var(--vx-text);
     font-family: 'Barlow Semi Condensed', 'Segoe UI', sans-serif;
     font-size: 12px;
     line-height: 16px;
     text-align: left;
-}
-
-section#boot_screen.vx-leaving {
-    animation: vx-fade-out 500ms linear forwards;
 }
 
 #boot_screen .vx-rain {
@@ -43,7 +42,7 @@ section#boot_screen.vx-leaving {
     font-weight: 900;
     line-height: 1.12em;
     word-break: break-all;
-    color: hsl(var(--hue) 88% 62% / var(--alpha));
+    color: hsl(var(--hue) var(--vx-rain-s) var(--vx-rain-l) / var(--alpha));
     animation: vx-rain var(--fall) linear var(--fall-delay) infinite;
 }
 
@@ -65,8 +64,8 @@ section#boot_screen.vx-leaving {
 }
 
 #boot_screen .vx-head {
-    color: hsl(var(--hue) 88% 92% / 0.95);
-    text-shadow: 0 0 10px hsl(var(--hue) 88% 62% / 0.9);
+    color: hsl(var(--hue) var(--vx-rain-s) var(--vx-rain-hl) / 0.95);
+    text-shadow: 0 0 10px hsl(var(--hue) var(--vx-rain-s) var(--vx-rain-l) / 0.9);
 }
 
 #boot_screen .vx-streak {
@@ -74,7 +73,7 @@ section#boot_screen.vx-leaving {
     top: -180px;
     width: 2px;
     height: 180px;
-    background: linear-gradient(to bottom, transparent, hsl(var(--hue) 88% 62% / 0.8));
+    background: linear-gradient(to bottom, transparent, hsl(var(--hue) var(--vx-rain-s) var(--vx-rain-l) / 0.8));
     animation: vx-streak var(--fall) linear var(--fall-delay) infinite;
 }
 
@@ -84,7 +83,7 @@ section#boot_screen.vx-leaving {
     top: 0;
     width: 100%;
     height: 100%;
-    background: linear-gradient(to right, #0F11139e 0px, #0F11139e calc(var(--vx-x) + 660px * var(--vx-s)), transparent calc(var(--vx-x) + 960px * var(--vx-s)));
+    background: linear-gradient(to right, color-mix(in srgb, var(--vx-bg) 62%, transparent) 0px, color-mix(in srgb, var(--vx-bg) 62%, transparent) calc(var(--vx-x) + 660px * var(--vx-s)), transparent calc(var(--vx-x) + 960px * var(--vx-s)));
 }
 
 #boot_screen .vx-dim-left.vx-out {
@@ -116,7 +115,7 @@ section#boot_screen.vx-leaving {
     top: 0;
     width: 1366px;
     height: 768px;
-    background: radial-gradient(500px 250px at 683px 352px, #0F1113e6 0%, transparent 100%);
+    background: radial-gradient(500px 250px at 683px 352px, color-mix(in srgb, var(--vx-bg) 90%, transparent) 0%, transparent 100%);
     opacity: 0;
     animation: vx-fade 600ms linear 100ms both;
 }
@@ -149,6 +148,7 @@ section#boot_screen.vx-leaving {
 #boot_screen .vx-head-left > svg {
     display: block;
     flex: 0 0 auto;
+    color: var(--vx-accent);
 }
 
 #boot_screen .vx-brand {
@@ -156,20 +156,20 @@ section#boot_screen.vx-leaving {
     font-size: 10px;
     font-weight: 900;
     letter-spacing: 0.06em;
-    color: #A3AAB2;
+    color: var(--vx-text2);
 }
 
 #boot_screen .vx-label {
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.16em;
-    color: #838B94;
+    color: var(--vx-text3);
 }
 
 #boot_screen .vx-version {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
-    color: #838B94;
+    color: var(--vx-text3);
 }
 
 #boot_screen .vx-head-right {
@@ -188,14 +188,14 @@ section#boot_screen.vx-leaving {
     font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.16em;
-    color: #838B94;
+    color: var(--vx-text3);
 }
 
 #boot_screen .vx-counter {
     text-align: right;
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
-    color: #A3AAB2;
+    color: var(--vx-text2);
 }
 
 #boot_screen .vx-counter-lines {
@@ -216,7 +216,7 @@ section#boot_screen.vx-leaving {
     top: 56px;
     width: 1270px;
     height: 1px;
-    background: #252A30;
+    background: var(--vx-line);
     transform-origin: 0 0;
     animation: vx-grow-x 800ms var(--eo) 120ms both;
 }
@@ -258,13 +258,13 @@ section#boot_screen.vx-leaving {
 #boot_screen .vx-line-time {
     width: 60px;
     flex: 0 0 auto;
-    color: #838B94;
+    color: var(--vx-text3);
 }
 
 #boot_screen .vx-line-tag {
     width: 60px;
     flex: 0 0 auto;
-    color: #3FD5C3;
+    color: var(--vx-accent);
 }
 
 #boot_screen .vx-line-msg {
@@ -272,43 +272,43 @@ section#boot_screen.vx-leaving {
     min-width: 0;
     overflow: hidden;
     text-overflow: ellipsis;
-    color: #A3AAB2;
+    color: var(--vx-text2);
 }
 
 #boot_screen .vx-line-status {
     width: 56px;
     flex: 0 0 auto;
     text-align: right;
-    color: #838B94;
+    color: var(--vx-text3);
 }
 
 #boot_screen .vx-newest .vx-line-msg {
-    color: #E6E8EA;
+    color: var(--vx-text);
 }
 
 #boot_screen .vx-fail .vx-line-tag,
 #boot_screen .vx-fail .vx-line-msg {
-    color: #FF7A85;
+    color: var(--vx-red);
 }
 
 #boot_screen .vx-status-ok {
-    color: #3FD5C3;
+    color: var(--vx-accent);
 }
 
 #boot_screen .vx-status-info {
-    color: #A3AAB2;
+    color: var(--vx-text2);
 }
 
 #boot_screen .vx-status-warn {
-    color: #F2C14E;
+    color: var(--vx-warn);
 }
 
 #boot_screen .vx-status-fail {
-    color: #FF7A85;
+    color: var(--vx-red);
 }
 
 #boot_screen .vx-status-pending {
-    color: #838B94;
+    color: var(--vx-text3);
 }
 
 #boot_screen .vx-crt-line {
@@ -317,8 +317,8 @@ section#boot_screen.vx-leaving {
     top: 383px;
     width: 1270px;
     height: 2px;
-    background: #3FD5C3;
-    box-shadow: 0 0 14px #3FD5C3;
+    background: var(--vx-accent);
+    box-shadow: 0 0 14px var(--vx-accent);
     opacity: 0;
     animation: vx-crt-line 480ms var(--ei) 180ms both;
 }
@@ -329,7 +329,7 @@ section#boot_screen.vx-leaving {
     top: 0;
     width: 1366px;
     height: 768px;
-    background: radial-gradient(560px 320px at 683px 352px, #3FD5C329 0%, transparent 100%);
+    background: radial-gradient(560px 320px at 683px 352px, color-mix(in srgb, var(--vx-accent) 16%, transparent) 0%, transparent 100%);
     opacity: 0;
     animation: vx-tglow 2900ms linear 330ms both;
 }
@@ -339,7 +339,7 @@ section#boot_screen.vx-leaving {
     left: 419px;
     width: 528px;
     height: 2px;
-    background: #3FD5C3;
+    background: var(--vx-accent);
     transform-origin: 50% 50%;
 }
 
@@ -376,14 +376,14 @@ section#boot_screen.vx-leaving {
     top: 0;
     width: 2px;
     height: 144px;
-    background: #3FD5C3;
+    background: var(--vx-accent);
     transform-origin: 50% 100%;
     animation: vx-grow-y 180ms var(--eo) 1380ms both;
 }
 
 #boot_screen .vx-corner {
     position: absolute;
-    background: #3FD5C3;
+    background: var(--vx-accent);
     animation: vx-fade 220ms linear 2660ms both;
 }
 
@@ -399,7 +399,7 @@ section#boot_screen.vx-leaving {
     line-height: 14px;
     font-weight: 600;
     letter-spacing: 0.32em;
-    color: #838B94;
+    color: var(--vx-text3);
     white-space: nowrap;
     animation: vx-rise 420ms var(--eo) 2760ms both;
 }
@@ -413,7 +413,7 @@ section#boot_screen.vx-leaving {
     font-family: 'JetBrains Mono', monospace;
     font-size: 10px;
     line-height: 14px;
-    color: #838B94;
+    color: var(--vx-text3);
     white-space: nowrap;
     animation: vx-fade 420ms linear 2840ms both;
 }
@@ -425,6 +425,7 @@ section#boot_screen.vx-leaving {
     width: 72px;
     height: 72px;
     transform-origin: 0 0;
+    color: var(--vx-accent);
 }
 
 #boot_screen .vx-logo > svg {
@@ -456,7 +457,7 @@ section#boot_screen.vx-leaving {
     position: absolute;
     width: 7.56px;
     height: 7.56px;
-    background: #E6E8EA;
+    background: var(--vx-text);
     opacity: 0;
     animation: vx-dot 460ms cubic-bezier(0.5, 0, 0.9, 0.5) var(--delay) both, vx-fade-out 140ms linear 1680ms forwards;
 }
@@ -467,7 +468,7 @@ section#boot_screen.vx-leaving {
     bottom: 100%;
     width: 7.56px;
     height: 40px;
-    background: linear-gradient(to bottom, transparent, #3FD5C38c);
+    background: linear-gradient(to bottom, transparent, color-mix(in srgb, var(--vx-accent) 55%, transparent));
     opacity: 0;
     animation: vx-trail 460ms linear var(--delay) both;
 }
@@ -484,7 +485,7 @@ section#boot_screen.vx-leaving {
     letter-spacing: 0.06em;
     white-space: nowrap;
     transform-origin: 0 0;
-    color: #E6E8EA;
+    color: var(--vx-text);
 }
 
 #boot_screen h1.vx-wordmark {
@@ -497,7 +498,7 @@ section#boot_screen.vx-leaving {
     top: 0;
     width: 1366px;
     height: 768px;
-    background: #3FD5C3;
+    background: var(--vx-accent);
     animation: vx-flash 480ms linear 1780ms both;
 }
 
@@ -506,45 +507,95 @@ section#boot_screen.vx-leaving {
     left: 467px;
     top: 316px;
     display: block;
+    color: var(--vx-ink);
 }
 
 #boot_screen .vx-flash > .vx-wordmark {
-    color: #06110F;
+    color: var(--vx-ink);
 }
 
 #boot_screen .vx-tear-a {
-    color: #3FD5C3;
+    color: var(--vx-accent);
     clip-path: inset(0px -24px 61px -24px);
     opacity: 0;
     animation: vx-tear-a 140ms steps(1, end) 2260ms both, vx-tear-a 120ms steps(1, end) 2460ms forwards;
 }
 
 #boot_screen .vx-tear-b {
-    color: #3FD5C3;
+    color: var(--vx-accent);
     clip-path: inset(42px -24px 41px -24px);
     opacity: 0;
     animation: vx-tear-b 140ms steps(1, end) 2260ms both, vx-tear-b 120ms steps(1, end) 2460ms forwards;
 }
 
 #boot_screen .vx-tear-c {
-    color: #3FD5C3;
+    color: var(--vx-accent);
     clip-path: inset(62px -24px 0px -24px);
     opacity: 0;
     animation: vx-tear-c 140ms steps(1, end) 2260ms both, vx-tear-c 120ms steps(1, end) 2460ms forwards;
 }
 
 #boot_screen .vx-ghost-r {
-    color: #FF7A85;
+    color: var(--vx-red);
     clip-path: none;
     opacity: 0;
     animation: vx-ghost-r 140ms steps(1, end) 2260ms both, vx-ghost-r 120ms steps(1, end) 2460ms forwards;
 }
 
 #boot_screen .vx-ghost-a {
-    color: #3FD5C3;
+    color: var(--vx-accent);
     clip-path: none;
     opacity: 0;
     animation: vx-ghost-a 140ms steps(1, end) 2260ms both, vx-ghost-a 120ms steps(1, end) 2460ms forwards;
+}
+
+section#boot_screen.vx-handoff {
+    pointer-events: none;
+    animation: vx-cover-out 320ms linear forwards;
+}
+
+#boot_screen.vx-handoff .vx-stage {
+    overflow: visible;
+}
+
+#boot_screen.vx-handoff .vx-rain {
+    animation: vx-fade 900ms linear 100ms both, vx-hide 420ms linear forwards;
+}
+
+#boot_screen.vx-handoff .vx-dim-title {
+    animation: vx-fade 600ms linear 100ms both, vx-hide 320ms linear forwards;
+}
+
+#boot_screen.vx-handoff .vx-subtitle {
+    animation: vx-rise 420ms var(--eo) 2760ms both, vx-hide 260ms linear forwards;
+}
+
+#boot_screen.vx-handoff .vx-title-version {
+    animation: vx-fade 420ms linear 2840ms both, vx-hide 260ms linear forwards;
+}
+
+#boot_screen.vx-handoff .vx-corner {
+    animation: vx-fade 220ms linear 2660ms both, vx-arm 650ms var(--ei) forwards, vx-hide 260ms linear 650ms forwards;
+}
+
+#boot_screen.vx-handoff .vx-logo {
+    animation: vx-dock 700ms var(--ei) forwards, vx-hide 100ms linear 720ms forwards;
+}
+
+#boot_screen.vx-handoff .vx-logo-frame {
+    animation: vx-draw 380ms var(--eo) 430ms both, vx-thick-frame 700ms var(--ei) forwards;
+}
+
+#boot_screen.vx-handoff .vx-logo-chevron {
+    animation: vx-draw 240ms var(--eo) 730ms both, vx-thick-mark 700ms var(--ei) forwards;
+}
+
+#boot_screen.vx-handoff .vx-logo-cursor {
+    animation: vx-cursor 700ms steps(1, end) 930ms both, vx-thick-mark 700ms var(--ei) forwards;
+}
+
+#boot_screen.vx-handoff h1.vx-wordmark {
+    animation: vx-fade 140ms linear 1680ms both, vx-jit 140ms steps(1, end) 2260ms, vx-jit 120ms steps(1, end) 2460ms, vx-dock 700ms var(--ei) forwards, vx-hide 100ms linear 720ms forwards;
 }
 
 @keyframes vx-fade {
@@ -724,4 +775,31 @@ section#boot_screen.vx-leaving {
     37.5% { clip-path: inset(280px 419px 344px 419px); }
     62.5% { clip-path: inset(280px 419px 344px 419px); animation-timing-function: cubic-bezier(0.65, 0, 0.35, 1); }
     100% { clip-path: inset(280px 419px 344px 947px); }
+}
+
+@keyframes vx-hide {
+    to { opacity: 0; }
+}
+
+@keyframes vx-cover-out {
+    from { background-color: var(--vx-bg); }
+    to { background-color: transparent; }
+}
+
+@keyframes vx-arm {
+    from { transform: translate(0px, 0px); }
+    to { transform: translate(var(--vx-ax), var(--vx-ay)); }
+}
+
+@keyframes vx-dock {
+    from { transform: translate(0px, 0px) scale(1); }
+    to { transform: translate(var(--vx-dx), var(--vx-dy)) scale(var(--vx-k)); }
+}
+
+@keyframes vx-thick-frame {
+    to { stroke-width: 2.4; }
+}
+
+@keyframes vx-thick-mark {
+    to { stroke-width: 3; }
 }

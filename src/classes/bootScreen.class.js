@@ -26,6 +26,15 @@ class BootScreen {
         this.actTwo = false;
         this.rainSize = "";
         this.unsubscribe = null;
+        this.buildApp = opts.build || null;
+        this.revealApp = opts.reveal || null;
+        this.buildState = null;
+        this.handedOff = false;
+        this.handoffAt = null;
+        this.readyMessage = "";
+        this.view = {scale: 1, x: 0, y: 0};
+        this.arms = [];
+        this.rainColors = this.readRainColors();
         this.statusParts = {
             ok: ["[  ", "OK", "  ]"],
             info: ["[ ", "INFO", " ]"],
@@ -134,6 +143,12 @@ class BootScreen {
         return svg;
     }
 
+    readRainColors() {
+        let rain = window.theme ? window.theme.rain : null;
+        let valid = rain !== null && typeof rain === "object" && [rain.hue, rain.span, rain.saturation, rain.lightness, rain.head].every(value => Number.isFinite(value)) && [rain.saturation, rain.lightness, rain.head].every(value => value >= 0 && value <= 100);
+        return valid ? rain : {hue: 165, span: 150, saturation: 88, lightness: 62, head: 92};
+    }
+
     randomInt(min, max) {
         return min + Math.floor(Math.random() * (max - min + 1));
     }
@@ -154,6 +169,9 @@ class BootScreen {
         let screen = this.container;
         screen.textContent = "";
         screen.setAttribute("aria-label", "Vindex startup");
+        screen.style.setProperty("--vx-rain-s", this.rainColors.saturation + "%");
+        screen.style.setProperty("--vx-rain-l", this.rainColors.lightness + "%");
+        screen.style.setProperty("--vx-rain-hl", this.rainColors.head + "%");
         this.rain = this.hidden(this.el("div", "vx-rain"));
         this.dimLeft = this.hidden(this.el("div", "vx-dim-left"));
         this.stage = this.el("div", "vx-stage");
@@ -162,9 +180,9 @@ class BootScreen {
         let head = this.el("div", "vx-head-left");
         head.append(
             this.svg(10, [
-                ["rect", {x: "1", y: "1", width: "22", height: "22", fill: "none", stroke: "#3FD5C3", "stroke-width": "2.4"}],
-                ["path", {d: "M5.5 7.5L10 12L5.5 16.5", fill: "none", stroke: "#3FD5C3", "stroke-width": "3"}],
-                ["path", {d: "M12 16.5H18.5", fill: "none", stroke: "#3FD5C3", "stroke-width": "3"}]
+                ["rect", {x: "1", y: "1", width: "22", height: "22", fill: "none", stroke: "currentColor", "stroke-width": "2.4"}],
+                ["path", {d: "M5.5 7.5L10 12L5.5 16.5", fill: "none", stroke: "currentColor", "stroke-width": "3"}],
+                ["path", {d: "M12 16.5H18.5", fill: "none", stroke: "currentColor", "stroke-width": "3"}]
             ]),
             this.el("span", "vx-brand", "VINDEX"),
             this.el("span", "vx-label", "BOOT SEQUENCE"),
@@ -198,9 +216,12 @@ class BootScreen {
         let scale = Math.min(width / 1366, height / 768);
         if (!(scale > 0)) return;
         let style = this.container.style;
+        let x = (width - 1366 * scale) / 2;
+        let y = (height - 768 * scale) / 2;
+        this.view = {scale, x, y};
         style.setProperty("--vx-s", String(scale));
-        style.setProperty("--vx-x", ((width - 1366 * scale) / 2) + "px");
-        style.setProperty("--vx-y", ((height - 768 * scale) / 2) + "px");
+        style.setProperty("--vx-x", x + "px");
+        style.setProperty("--vx-y", y + "px");
         let rainWidth = width / scale;
         let rainHeight = height / scale;
         this.rain.style.width = rainWidth + "px";
@@ -232,7 +253,7 @@ class BootScreen {
         column.style.top = (-length) + "px";
         column.style.height = length + "px";
         column.style.fontSize = size + "px";
-        column.style.setProperty("--hue", String(165 + 150 * ((count > 1) ? i / (count - 1) : 0)));
+        column.style.setProperty("--hue", String(this.rainColors.hue + this.rainColors.span * ((count > 1) ? i / (count - 1) : 0)));
         column.style.setProperty("--alpha", String(alpha));
         column.style.setProperty("--d", (height + length) + "px");
         column.style.setProperty("--fall", fall + "ms");
@@ -256,7 +277,7 @@ class BootScreen {
         let fall = this.randomInt(2600, 4600);
         let streak = this.el("span", "vx-streak");
         streak.style.left = x.toFixed(1) + "px";
-        streak.style.setProperty("--hue", String(165 + 150 * x / width));
+        streak.style.setProperty("--hue", String(this.rainColors.hue + this.rainColors.span * x / width));
         streak.style.setProperty("--d", (height + 232) + "px");
         streak.style.setProperty("--fall", fall + "ms");
         streak.style.setProperty("--fall-delay", (-this.randomInt(0, fall)) + "ms");
@@ -345,6 +366,7 @@ class BootScreen {
         let t = Math.max(0, (typeof line.t === "number") ? line.t : Math.round(line.pt + this.offset));
         let row = this.el("div", (status === "fail") ? "vx-line vx-newest vx-fail" : "vx-line vx-newest");
         row.style.top = (this.shown * 16) + "px";
+        line.row = row;
         line.state = this.el("span", "vx-line-status");
         this.setStatus(line.state, status);
         row.append(
@@ -394,12 +416,21 @@ class BootScreen {
             lines.forEach(([message, status]) => this.addLine(tag, message, status));
             this.checksLeft--;
             if (this.checksLeft > 0) return;
-            this.building = this.addLine("UI", "Building interface", "pending");
+            this.building = this.addLine("UI", "Building interface", "pending", () => this.startBuild());
             this.checksDone = true;
             this.checkReady();
         };
         this.expirers.push(() => settle(null));
         new Promise(resolve => resolve(task())).then(this.guard(settle), this.guard(() => settle(null)));
+    }
+
+    startBuild() {
+        let settle = state => {
+            if (this.buildState !== null) return;
+            this.buildState = state;
+            this.checkReady();
+        };
+        new Promise(resolve => resolve(this.buildApp ? this.buildApp() : null)).then(this.guard(() => settle("ok")), this.guard(() => settle("fail")));
     }
 
     expire() {
@@ -411,7 +442,7 @@ class BootScreen {
     }
 
     checkReady() {
-        if (this.ready || !this.checksDone || !this.replied || this.queue.length > 0 || this.pumpTimer !== null || !this.building.state) return;
+        if (this.ready || !this.checksDone || !this.replied || this.queue.length > 0 || this.pumpTimer !== null || !this.building.state || this.buildState === null) return;
         let now = performance.now();
         let wait = this.forced ? 0 : Math.max(this.startedAt + 1800 - now, this.building.shownAt + 240 - now);
         if (wait > 0) {
@@ -424,18 +455,21 @@ class BootScreen {
             return;
         }
         this.ready = true;
-        this.setStatus(this.building.state, "ok");
-        let onShown = () => this.onReady();
-        if (this.problems === 0) {
-            this.addLine("READY", "All systems online", "ok", onShown);
+        if (this.buildState === "fail") {
+            this.setStatus(this.building.state, "fail");
+            this.building.row.classList.add("vx-fail");
+            this.problems++;
+            this.sound("error");
         } else {
-            this.addLine("READY", "Started with " + this.problems + ((this.problems === 1) ? " problem" : " problems"), "warn", onShown);
+            this.setStatus(this.building.state, "ok");
         }
+        this.readyMessage = (this.problems === 0) ? "All systems online" : "Started with " + this.problems + ((this.problems === 1) ? " problem" : " problems");
+        this.addLine("READY", this.readyMessage, (this.problems === 0) ? "ok" : "warn", () => this.onReady());
     }
 
     onReady() {
         this.play("granted");
-        this.log("info", "Boot screen: " + this.shown + " lines, " + this.problems + " problems, ready at " + Math.round(performance.now() - this.startedAt) + " ms");
+        this.log("info", "Boot screen: " + this.shown + " lines, " + this.problems + ((this.problems === 1) ? " problem" : " problems") + ", ready at " + Math.round(performance.now() - this.startedAt) + " ms");
         this.later(() => this.startActTwo(), 260);
     }
 
@@ -532,8 +566,62 @@ class BootScreen {
         this.play("theme");
         this.later(() => this.play("scan"), 630);
         this.later(() => this.play("expand"), 1780);
-        this.later(() => this.container.classList.add("vx-leaving"), 3400);
-        this.later(() => this.finish(), 3900);
+        this.afterStart(this.stage.querySelector(".vx-dim-title"), "vx-fade", start => {
+            this.later(() => this.handoff(), Math.max(0, start + 2980 - performance.now()));
+        });
+    }
+
+    afterStart(node, name, callback) {
+        let animation = node ? node.getAnimations().find(item => item.animationName === name) : null;
+        if (!animation) {
+            callback(performance.now());
+            return;
+        }
+        animation.ready.then(this.guard(() => callback((typeof animation.startTime === "number") ? animation.startTime : performance.now())), this.guard(() => callback(performance.now())));
+    }
+
+    toStage(x, y) {
+        return [(x - this.view.x) / this.view.scale, (y - this.view.y) / this.view.scale];
+    }
+
+    dock(node, x, y, scale) {
+        node.style.setProperty("--vx-dx", x + "px");
+        node.style.setProperty("--vx-dy", y + "px");
+        node.style.setProperty("--vx-k", String(scale));
+    }
+
+    handoff() {
+        let app = document.getElementById("vx-app");
+        let logo = app.querySelector(".vx-brand .vx-logo").getBoundingClientRect();
+        let wordmark = app.querySelector(".vx-brand .vx-wordmark");
+        let word = wordmark.getBoundingClientRect();
+        let main = app.querySelector(".vx-main");
+        let grid = main.getBoundingClientRect();
+        let pad = getComputedStyle(main);
+        let scale = this.view.scale;
+        let [logoX, logoY] = this.toStage(logo.left, logo.top);
+        this.dock(this.stage.querySelector(".vx-logo"), logoX - 467, logoY - 316, logo.width / scale / 72);
+        let [wordX, wordY] = this.toStage(word.left, word.top);
+        this.dock(this.stage.querySelector("h1.vx-wordmark"), wordX - 571, wordY - 300.308, parseFloat(getComputedStyle(wordmark).fontSize) / scale / 84);
+        let [gridLeft, gridTop] = this.toStage(grid.left + parseFloat(pad.paddingLeft), grid.top + parseFloat(pad.paddingTop));
+        let [gridRight, gridBottom] = this.toStage(grid.right - parseFloat(pad.paddingRight), grid.bottom - parseFloat(pad.paddingBottom));
+        this.arms.forEach(({node, left, top}) => {
+            node.style.setProperty("--vx-ax", ((left < 683) ? gridLeft - 419 : gridRight - 947) + "px");
+            node.style.setProperty("--vx-ay", ((top < 352) ? gridTop - 280 : gridBottom - 424) + "px");
+        });
+        this.container.classList.add("vx-handoff");
+        this.handoffAt = performance.now();
+        this.handedOff = true;
+        try {
+            if (this.revealApp) this.revealApp();
+        } catch(err) {
+            this.log("error", "Could not show the interface: " + String((err && (err.stack || err.message)) || err));
+        }
+        this.afterStart(this.container, "vx-cover-out", start => {
+            this.handoffAt = start;
+            this.later(() => this.play("panels"), Math.max(0, start + 620 - performance.now()));
+            this.later(() => this.finish(), Math.max(0, start + 1000 - performance.now()));
+        });
     }
 
     buildTitle() {
@@ -549,6 +637,7 @@ class BootScreen {
         });
         [[419, 280, 16, 2], [419, 280, 2, 16], [931, 280, 16, 2], [945, 280, 2, 16], [419, 422, 16, 2], [419, 408, 2, 16], [931, 422, 16, 2], [945, 408, 2, 16]].forEach(([left, top, width, height]) => {
             let arm = this.el("span", "vx-corner");
+            this.arms.push({node: arm, left, top});
             arm.style.left = left + "px";
             arm.style.top = top + "px";
             arm.style.width = width + "px";
@@ -562,17 +651,17 @@ class BootScreen {
 
         let logo = this.hidden(this.el("div", "vx-logo"));
         logo.appendChild(this.svg(72, [
-            ["path", {class: "vx-logo-frame", d: "M1 1H23V23H1Z", fill: "none", stroke: "#3FD5C3", "stroke-width": "1.4", "stroke-linecap": "square", pathLength: "1"}],
-            ["path", {class: "vx-logo-chevron", d: "M5.5 7.5L10 12L5.5 16.5", fill: "none", stroke: "#3FD5C3", "stroke-width": "2.2", pathLength: "1"}],
-            ["path", {class: "vx-logo-cursor", d: "M12 16.5H18.5", fill: "none", stroke: "#3FD5C3", "stroke-width": "2.2"}]
+            ["path", {class: "vx-logo-frame", d: "M1 1H23V23H1Z", fill: "none", stroke: "currentColor", "stroke-width": "1.4", "stroke-linecap": "square", pathLength: "1"}],
+            ["path", {class: "vx-logo-chevron", d: "M5.5 7.5L10 12L5.5 16.5", fill: "none", stroke: "currentColor", "stroke-width": "2.2", pathLength: "1"}],
+            ["path", {class: "vx-logo-cursor", d: "M12 16.5H18.5", fill: "none", stroke: "currentColor", "stroke-width": "2.2"}]
         ]));
 
         let flash = this.hidden(this.el("div", "vx-flash"));
         flash.append(
             this.svg(72, [
-                ["rect", {x: "1", y: "1", width: "22", height: "22", fill: "none", stroke: "#06110F", "stroke-width": "1.4"}],
-                ["path", {d: "M5.5 7.5L10 12L5.5 16.5", fill: "none", stroke: "#06110F", "stroke-width": "2.2"}],
-                ["path", {d: "M12 16.5H18.5", fill: "none", stroke: "#06110F", "stroke-width": "2.2"}]
+                ["rect", {x: "1", y: "1", width: "22", height: "22", fill: "none", stroke: "currentColor", "stroke-width": "1.4"}],
+                ["path", {d: "M5.5 7.5L10 12L5.5 16.5", fill: "none", stroke: "currentColor", "stroke-width": "2.2"}],
+                ["path", {d: "M12 16.5H18.5", fill: "none", stroke: "currentColor", "stroke-width": "2.2"}]
             ]),
             this.el("span", "vx-wordmark", "VINDEX")
         );

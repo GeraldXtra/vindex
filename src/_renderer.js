@@ -77,6 +77,7 @@ window._loadTheme = theme => {
     root.style.setProperty("--color_light_black", colors.panel);
     root.style.setProperty("--color_grey", colors.text3);
     root.style.setProperty("--color_red", colors.red);
+    root.style.setProperty("--vx-warn", theme.terminal.yellow);
     root.style.setProperty("--color_yellow", "#F2C14E");
     root.style.setProperty("--font_main", "\"Barlow Semi Condensed\"");
     root.style.setProperty("--font_main_light", "\"Barlow Semi Condensed\"");
@@ -90,15 +91,41 @@ window._loadTheme = theme => {
     window.theme.b = accent.b;
 };
 
+let heldModals = null;
+
+function holdModals() {
+    if (heldModals === null) heldModals = [];
+}
+
+function releaseModals() {
+    let held = heldModals || [];
+    heldModals = null;
+    held.forEach(options => {
+        try {
+            new Modal(options);
+        } catch(err) {
+            window.vindex.log("error", "Could not show a message: " + String((err && err.message) || err));
+        }
+    });
+}
+
+function showModal(options) {
+    if (heldModals !== null) {
+        heldModals.push(options);
+        return null;
+    }
+    return new Modal(options);
+}
+
 function initGraphicalErrorHandling() {
     window.vindexErrorModals = [];
     window.onerror = (msg, path, line, col, error) => {
-        let errorModal = new Modal({
+        let errorModal = showModal({
             type: "error",
             title: error,
             message: `${msg}<br/>        at ${path}  ${line}:${col}`
         });
-        window.vindexErrorModals.push(errorModal);
+        if (errorModal !== null) window.vindexErrorModals.push(errorModal);
 
         window.vindex.log("error", `${error}: ${msg}`);
         window.vindex.log("debug", `at ${path} ${line}:${col}`);
@@ -144,15 +171,14 @@ function initSystemInformationProxy() {
 
 // Returns the user's desired display name
 async function getDisplayName() {
-    let user = settings.username || null;
-    if (user)
-        return user;
-
+    let user = (typeof window.settings.username === "string") ? window.settings.username.trim() : "";
+    if (user !== "" && user !== "undefined" && user !== "null") return user;
     try {
         user = await window.vindex.getUsername();
-    } catch (e) {}
-
-    return user;
+    } catch(err) {
+        user = null;
+    }
+    return (typeof user === "string" && user.trim() !== "") ? user.trim() : null;
 }
 
 function shellFileName() {
@@ -384,25 +410,63 @@ async function initUI() {
         window.term[window.currentTerm].resendCWD();
     }
 
-    document.getElementById("vx-app").classList.add("vx-ready");
+    return unusableLayout;
+}
+
+function revealUI(intro) {
+    let app = document.getElementById("vx-app");
+    if (intro) app.classList.add("vx-intro");
+    app.classList.add("vx-ready");
     requestAnimationFrame(() => {
-        let active = window.term[window.currentTerm];
+        let active = window.term ? window.term[window.currentTerm] : null;
+        if (!active) return;
         active.fit();
         active.term.focus();
     });
-    if (unusableLayout !== null) {
-        new Modal({
-            type: "warning",
-            title: "Keyboard",
-            message: "Could not load the keyboard layout " + window._escapeHtml(unusableLayout) + ". Using en-US instead."
-        });
+}
+
+function warnKeyboard(unusableLayout) {
+    if (unusableLayout === null) return;
+    showModal({
+        type: "warning",
+        title: "Keyboard",
+        message: "Could not load the keyboard layout " + window._escapeHtml(unusableLayout) + ". Using en-US instead."
+    });
+}
+
+async function showWelcome(displayName, status) {
+    let card = document.createElement("div");
+    card.className = "vx-welcome";
+    card.setAttribute("role", "status");
+    ["tl", "tr", "bl", "br"].forEach(corner => {
+        let mark = document.createElement("span");
+        mark.className = "vx-corner vx-corner-" + corner;
+        mark.setAttribute("aria-hidden", "true");
+        card.appendChild(mark);
+    });
+    let label = document.createElement("div");
+    label.className = "vx-welcome-label";
+    label.textContent = "WELCOME BACK";
+    card.appendChild(label);
+    let user = await displayName;
+    if (user) {
+        let line = document.createElement("div");
+        line.className = "vx-welcome-name";
+        line.textContent = user;
+        card.appendChild(line);
     }
+    let note = document.createElement("div");
+    note.className = "vx-welcome-note";
+    note.textContent = status + " · nothing leaves this PC";
+    card.appendChild(note);
+    document.getElementById("vx-term-body").appendChild(card);
+    setTimeout(() => card.remove(), 3200);
 }
 
 function showInterfaceError(err) {
     try {
         window.vindex.log("error", "Could not build the interface: " + String((err && (err.stack || err.message)) || err));
-        new Modal({
+        showModal({
             type: "error",
             title: "Interface",
             message: window._escapeHtml(String((err && err.message) || err))
@@ -1159,13 +1223,55 @@ async function startup() {
             initSystemInformationProxy();
             document.getElementById("boot_screen").remove();
             document.body.setAttribute("class", "");
-            waitForFonts().then(initUI).catch(showInterfaceError);
+            waitForFonts().then(initUI).then(unusableLayout => {
+                revealUI(false);
+                warnKeyboard(unusableLayout);
+            }).catch(showInterfaceError);
         } else {
             initSystemInformationProxy();
-            await new BootScreen({container: document.getElementById("boot_screen"), settings: window.settings}).run();
+            holdModals();
             initGraphicalErrorHandling();
+            let displayName = getDisplayName();
+            let building = null;
+            let buildUI = () => {
+                if (building === null) {
+                    building = waitForFonts().then(initUI).then(unusableLayout => new Promise(resolve => {
+                        let done = () => resolve(unusableLayout);
+                        document.getElementById("vx-app").classList.add("vx-ready");
+                        requestAnimationFrame(() => requestAnimationFrame(done));
+                        setTimeout(done, 200);
+                    }));
+                    building.then(warnKeyboard, showInterfaceError);
+                }
+                return building;
+            };
+            let boot = new BootScreen({
+                container: document.getElementById("boot_screen"),
+                settings: window.settings,
+                build: buildUI,
+                reveal: () => revealUI(true)
+            });
+            await boot.run();
             document.body.setAttribute("class", "");
-            waitForFonts().then(initUI).catch(showInterfaceError);
+            if (boot.handedOff) {
+                document.getElementById("vx-app").classList.add("vx-ready");
+                setTimeout(() => {
+                    document.getElementById("vx-app").classList.remove("vx-intro");
+                    releaseModals();
+                }, Math.max(0, boot.handoffAt + 2000 - performance.now()));
+                setTimeout(() => {
+                    showWelcome(displayName, boot.readyMessage).catch(err => {
+                        window.vindex.log("error", "Could not show the welcome card: " + String((err && err.message) || err));
+                    });
+                }, Math.max(0, boot.handoffAt + 2050 - performance.now()));
+            } else {
+                let reveal = () => {
+                    document.getElementById("vx-app").classList.remove("vx-intro");
+                    revealUI(false);
+                    releaseModals();
+                };
+                buildUI().then(reveal, reveal);
+            }
         }
     } catch(error) {
         let bootScreen = document.getElementById("boot_screen");
