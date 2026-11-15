@@ -33,6 +33,7 @@
         <!-- Load extra classes -->
         <script src="classes/audiofx.class.js"></script>
         <script src="classes/bootScreen.class.js"></script>
+        <script src="classes/systemMonitor.class.js"></script>
     </head>
     <body class="solidBackground">
         <section id="boot_screen">
@@ -124,13 +125,13 @@
                 <div class="vx-column vx-column-right">
                     <section class="vx-panel vx-panel-system" aria-label="System">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>
-                        <div class="vx-panel-head"><span class="vx-panel-number">06</span><span class="vx-panel-title">SYSTEM</span><span class="vx-rule" aria-hidden="true"></span></div>
-                        <div class="vx-placeholder">NOT BUILT YET</div>
+                        <div class="vx-panel-head"><span class="vx-panel-number">06</span><span class="vx-panel-title">SYSTEM</span><span class="vx-rule" aria-hidden="true"></span><span id="vx-sys-model" class="vx-panel-meta" hidden></span></div>
+                        <div id="vx-sys-body" class="vx-sys-body"></div>
                     </section>
                     <section class="vx-panel vx-panel-cpu" aria-label="CPU">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>
-                        <div class="vx-panel-head"><span class="vx-panel-number">07</span><span class="vx-panel-title">CPU</span><span class="vx-rule" aria-hidden="true"></span></div>
-                        <div class="vx-placeholder">NOT BUILT YET</div>
+                        <div class="vx-panel-head"><span class="vx-panel-number">07</span><span class="vx-panel-title">CPU</span><span class="vx-rule" aria-hidden="true"></span><span id="vx-cpu-meta" class="vx-panel-meta" hidden></span></div>
+                        <div id="vx-cpu-body" class="vx-cpu-body"></div>
                     </section>
                     <section class="vx-panel vx-panel-network" aria-label="Network">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>
@@ -139,8 +140,8 @@
                     </section>
                     <section class="vx-panel vx-panel-fill vx-panel-processes" aria-label="Processes">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>
-                        <div class="vx-panel-head"><span class="vx-panel-number">09</span><span class="vx-panel-title">PROCESSES</span><span class="vx-rule" aria-hidden="true"></span></div>
-                        <div class="vx-placeholder">NOT BUILT YET</div>
+                        <div class="vx-panel-head"><span class="vx-panel-number">09</span><span class="vx-panel-title">PROCESSES</span><span class="vx-rule" aria-hidden="true"></span><span id="vx-proc-meta" class="vx-panel-meta" hidden></span></div>
+                        <div id="vx-proc-body" class="vx-proc-body"></div>
                     </section>
                 </div>
             </main>

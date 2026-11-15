@@ -555,6 +555,7 @@ handleWindowRequest("keyboard-read", args => args.length === 1 && isSafeFileName
 handleWindowRequest("keyboard-list", hasNoArgs, () => listJSONNames(kblayoutsDir), []);
 handleWindowRequest("boot-events-read", hasNoArgs, () => ({now: Math.round(process.uptime() * 1000), events: bootEvents.slice()}), {now: 0, events: []});
 handleWindowRequest("os-uptime", hasNoArgs, () => os.uptime(), 0);
+handleWindowRequest("os-memory", hasNoArgs, () => ({total: os.totalmem(), free: os.freemem()}), null);
 handleWindowRequest("os-username", hasNoArgs, async () => (await require("username")()) || null, null);
 handleWindowRequest("assets-file-icons", hasNoArgs, () => require("./assets/icons/file-icons.json"), null);
 handleWindowRequest("assets-globe-grid", hasNoArgs, () => require("./assets/misc/grid.json"), null);

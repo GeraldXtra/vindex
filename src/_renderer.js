@@ -410,7 +410,14 @@ async function initUI() {
         window.term[window.currentTerm].resendCWD();
     }
 
+    window.systemMonitor = new SystemMonitor();
+    window.systemMonitor.start();
+
     return unusableLayout;
+}
+
+function startProcessList() {
+    if (window.systemMonitor) window.systemMonitor.startProcesses();
 }
 
 function revealUI(intro) {
@@ -1226,6 +1233,7 @@ async function startup() {
             waitForFonts().then(initUI).then(unusableLayout => {
                 revealUI(false);
                 warnKeyboard(unusableLayout);
+                startProcessList();
             }).catch(showInterfaceError);
         } else {
             initSystemInformationProxy();
@@ -1258,6 +1266,7 @@ async function startup() {
                 setTimeout(() => {
                     document.getElementById("vx-app").classList.remove("vx-intro");
                     releaseModals();
+                    startProcessList();
                 }, Math.max(0, boot.handoffAt + 2000 - performance.now()));
                 setTimeout(() => {
                     showWelcome(displayName, boot.readyMessage).catch(err => {
@@ -1269,6 +1278,7 @@ async function startup() {
                     document.getElementById("vx-app").classList.remove("vx-intro");
                     revealUI(false);
                     releaseModals();
+                    startProcessList();
                 };
                 buildUI().then(reveal, reveal);
             }

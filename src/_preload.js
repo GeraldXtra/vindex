@@ -200,6 +200,9 @@ const vindex = Object.freeze({
     getSystemUptime: () => {
         return ipcRenderer.invoke("os-uptime");
     },
+    getMemory: () => {
+        return ipcRenderer.invoke("os-memory");
+    },
     getUsername: () => {
         return ipcRenderer.invoke("os-username");
     },
