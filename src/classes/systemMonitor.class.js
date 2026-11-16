@@ -22,6 +22,7 @@ class SystemMonitor {
         this.processStartedAt = 0;
         this.processTimer = null;
         this.processFailed = false;
+        this.processFailures = 0;
         this.processCount = null;
         this.processList = null;
         this.processNames = new Map();
@@ -519,10 +520,19 @@ class SystemMonitor {
 
     takeProcesses(data) {
         if (!data || !Array.isArray(data.list)) {
+            this.processFailures += 1;
             this.processFailed = true;
+            if (this.processFailures >= 3) {
+                this.processList = null;
+                this.processCount = null;
+                this.processNames = new Map();
+                SystemMonitor.setMeta(this.processMeta, "");
+                this.renderFoot();
+            }
             this.renderProcesses();
             return;
         }
+        this.processFailures = 0;
         this.processFailed = false;
         this.processSamples += 1;
         let list = data.list.filter(item => item && Number.isInteger(item.pid) && item.pid > 0);

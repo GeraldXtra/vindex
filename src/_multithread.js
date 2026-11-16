@@ -394,9 +394,9 @@ if (cluster.isPrimary) {
 
     function processShare(time, oldTime, total, before) {
         let share = 0;
-        if (before.all > 0 && oldTime !== null) {
+        if (before.all > 0) {
             let delta = total - before.all;
-            share = (delta > 0) ? (time - oldTime) / delta * 100 : 0;
+            share = (delta > 0) ? (time - ((oldTime === null) ? 0 : oldTime)) / delta * 100 : 0;
         } else {
             share = (total > 0) ? time / total * 100 : 0;
         }
@@ -473,7 +473,7 @@ if (cluster.isPrimary) {
             let timer = sharedShell ? setTimeout(() => {
                 if (!sharedShell) return;
                 releaseShell();
-                signale.warn(`systeminformation ${msg.type} call still running after 60 seconds, released the persistent PowerShell: every call in this worker now starts its own`);
+                signale.warn(`${msg.type} call still running after 60 seconds, released the persistent PowerShell: own reads in this worker now return nothing, and its systeminformation calls start their own PowerShell`);
             }, 60000) : null;
             call.then(res => {
                 clearTimeout(timer);
