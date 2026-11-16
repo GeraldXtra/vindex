@@ -335,9 +335,9 @@ class NetworkMonitor {
             let routed = list.find(item => item.ipv4.includes(data.route));
             if (routed) return routed;
         }
-        let gateways = list.filter(item => item.gateway === true && item.ipv4.length > 0);
+        let gateways = list.filter(item => item.gateway === true);
         if (gateways.length === 0) return null;
-        return gateways.sort((a, b) => ((Number(b.speed) || 0) - (Number(a.speed) || 0)) || (b.rx - a.rx))[0];
+        return gateways.sort((a, b) => (Number(b.ipv4.length > 0) - Number(a.ipv4.length > 0)) || ((Number(b.speed) || 0) - (Number(a.speed) || 0)) || (b.rx - a.rx))[0];
     }
 
     takeTraffic(data) {

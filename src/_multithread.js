@@ -16,7 +16,7 @@ if (cluster.isPrimary) {
         ["netTraffic", "network"],
         ["netConnections", "network"],
         ["netNames", "network"],
-        ["processes", "process"],
+        ["processes", "general"],
         ["cpuTemperature", "process"]
     ]);
     const maxRestarts = 3;
@@ -213,26 +213,51 @@ if (cluster.isPrimary) {
     const net = require("net");
     const childProcess = require("child_process");
     const shellTools = require("systeminformation/lib/util");
-    const netstatFile = path.join(process.env.SystemRoot || "C:\\Windows", "System32", "netstat.exe");
-    const trafficScript = "&{$ProgressPreference='SilentlyContinue';try{$f=[Diagnostics.Stopwatch]::Frequency;$t=[Diagnostics.Stopwatch]::GetTimestamp();$all=[Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces();'T|'+$t+'|'+$f;foreach($n in $all){try{if($n.OperationalStatus -eq 'Up' -and $n.NetworkInterfaceType -ne 'Loopback'){try{$s=$n.GetIPStatistics()}catch{$s=$n.GetIPv4Statistics()};$p=$n.GetIPProperties();$g=0;foreach($a in $p.GatewayAddresses){if(-not $a.Address.Equals([Net.IPAddress]::Any) -and -not $a.Address.Equals([Net.IPAddress]::IPv6Any)){$g=1}};$v=@();foreach($u in $p.UnicastAddresses){if($u.Address.AddressFamily -eq 'InterNetwork'){$v+=$u.Address.ToString()}};'N|'+[int]$n.NetworkInterfaceType+'|'+$n.Speed+'|'+$s.BytesReceived+'|'+$s.BytesSent+'|'+$g+'|'+($v -join ',')+'|'+$n.Name}}catch{}}}catch{}}";
-    const connectionScript = "&{$ProgressPreference='SilentlyContinue';try{$g=[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties();foreach($c in $g.GetActiveTcpConnections()){if($c.State -eq 'Established'){'E|'+$c.LocalEndPoint.Address+'|'+$c.LocalEndPoint.Port+'|'+$c.RemoteEndPoint.Address+'|'+$c.RemoteEndPoint.Port}};foreach($l in $g.GetActiveTcpListeners()){'L|'+$l.Address+'|'+$l.Port};'OK'}catch{}}";
-    const nameScript = "&{$ProgressPreference='SilentlyContinue';try{foreach($r in (Get-DnsClientCache -ErrorAction Stop)){$k=[string]$r.Type;if($k -eq '1' -or $k -eq '28' -or $k -eq 'A' -or $k -eq 'AAAA'){'D|'+$r.Data+'|'+$r.Entry}};'OK'}catch{}}";
+    const toolFolder = path.join(process.env.SystemRoot || "C:\\Windows", "System32");
+    const netstatFile = path.join(toolFolder, "netstat.exe");
+    const routeFile = path.join(toolFolder, "route.exe");
+    const networkSetup = "function global:VxTraffic {$ProgressPreference='SilentlyContinue';try{$f=[Diagnostics.Stopwatch]::Frequency;$now=[Diagnostics.Stopwatch]::GetTimestamp();if($null -eq $global:VxLinks -or ($now - $global:VxLinksAt) -ge 5*$f){$l=@();foreach($n in [Net.NetworkInformation.NetworkInterface]::GetAllNetworkInterfaces()){try{if($n.OperationalStatus -eq 'Up' -and $n.NetworkInterfaceType -ne 'Loopback'){$p=$n.GetIPProperties();$g=0;foreach($a in $p.GatewayAddresses){if(-not $a.Address.Equals([Net.IPAddress]::Any) -and -not $a.Address.Equals([Net.IPAddress]::IPv6Any)){$g=1}};$v=@();foreach($u in $p.UnicastAddresses){if($u.Address.AddressFamily -eq 'InterNetwork'){$v+=$u.Address.ToString()}};$l+=,@($n,([string][int]$n.NetworkInterfaceType+'|'+$n.Speed),([string]$g+'|'+($v -join ',')+'|'+$n.Name))}}catch{}};$global:VxLinks=$l;$global:VxLinksAt=$now};$t=[Diagnostics.Stopwatch]::GetTimestamp();'T|'+$t+'|'+$f;$bad=$false;foreach($e in $global:VxLinks){try{try{$s=$e[0].GetIPStatistics()}catch{$s=$e[0].GetIPv4Statistics()};'N|'+$e[1]+'|'+$s.BytesReceived+'|'+$s.BytesSent+'|'+$e[2]}catch{$bad=$true}};if($bad){$global:VxLinks=$null}}catch{}};function global:VxConnections {$ProgressPreference='SilentlyContinue';try{$g=[Net.NetworkInformation.IPGlobalProperties]::GetIPGlobalProperties();foreach($c in $g.GetActiveTcpConnections()){if($c.State -eq 'Established'){'E|'+$c.LocalEndPoint.Address+'|'+$c.LocalEndPoint.Port+'|'+$c.RemoteEndPoint.Address+'|'+$c.RemoteEndPoint.Port}};foreach($l in $g.GetActiveTcpListeners()){'L|'+$l.Address+'|'+$l.Port};'OK'}catch{}};function global:VxNames {$ProgressPreference='SilentlyContinue';try{foreach($r in (Get-DnsClientCache -ErrorAction Stop)){$k=[string]$r.Type;if($k -eq '1' -or $k -eq '28' -or $k -eq 'A' -or $k -eq 'AAAA'){'D|'+$r.Data+'|'+$r.Entry}};'OK'}catch{}};$global:VxReady=$true;'READY'";
+    const generalSetup = "function global:VxProcesses {$ProgressPreference='SilentlyContinue';try{foreach($p in (Get-CimInstance -ClassName Win32_Process -Property ProcessId,Caption,KernelModeTime,UserModeTime,WorkingSetSize -ErrorAction Stop)){'P|'+$p.ProcessId+'|'+$p.KernelModeTime+'|'+$p.UserModeTime+'|'+$p.WorkingSetSize+'|'+$p.Caption};'OK'}catch{}};$global:VxReady=$true;'READY'";
+    const shellSetups = {network: networkSetup, general: generalSetup};
+    const trafficCall = "if($global:VxReady){VxTraffic}";
+    const connectionCall = "if($global:VxReady){VxConnections}";
+    const nameCall = "if($global:VxReady){VxNames}";
+    const processCall = "if($global:VxReady){VxProcesses}";
     const route = {address: "", checkedAt: -Infinity, reading: null};
     const ownCalls = {
         netTraffic: readTraffic,
         netConnections: readConnections,
-        netNames: readNames
+        netNames: readNames,
+        processes: readProcesses
     };
+    var shellSetup = null;
+    var processTimes = {all: 0, user: 0, kernel: 0, list: new Map()};
 
-    function runShell(script) {
-        if (!sharedShell) return Promise.resolve(null);
+    function powerShell(script) {
         return Promise.resolve(shellTools.powerShell(script)).then(text => (typeof text === "string") ? text : null, () => null);
     }
 
-    function runNetstat(args) {
+    function shellReady() {
+        if (!sharedShell || !Object.prototype.hasOwnProperty.call(shellSetups, job)) return Promise.resolve(false);
+        if (shellSetup === null) {
+            let setup = powerShell(shellSetups[job]).then(text => {
+                let ready = text !== null && lines(text).includes("READY");
+                if (!ready && shellSetup === setup) shellSetup = null;
+                return ready;
+            });
+            shellSetup = setup;
+        }
+        return shellSetup;
+    }
+
+    function runShell(call) {
+        return shellReady().then(ready => (ready && sharedShell) ? powerShell(call) : null);
+    }
+
+    function runTool(file, args) {
         return new Promise(resolve => {
             try {
-                childProcess.execFile(netstatFile, args, {windowsHide: true, timeout: 20000, maxBuffer: 16777216}, (err, stdout) => {
+                childProcess.execFile(file, args, {windowsHide: true, timeout: 20000, maxBuffer: 16777216}, (err, stdout) => {
                     resolve(err ? null : String(stdout));
                 });
             } catch(err) {
@@ -278,7 +303,7 @@ if (cluster.isPrimary) {
         if (process.platform !== "win32") return Promise.resolve("");
         if (route.reading !== null) return route.reading;
         if (Date.now() - route.checkedAt < 30000) return Promise.resolve(route.address);
-        route.reading = runNetstat(["-rn"]).then(text => {
+        route.reading = runTool(routeFile, ["print", "-4"]).then(text => {
             let best = null;
             if (text !== null) lines(text).forEach(line => {
                 let parts = line.match(/^0\.0\.0\.0\s+0\.0\.0\.0\s+\S+\s+(\d+\.\d+\.\d+\.\d+)\s+(\d+)$/);
@@ -293,7 +318,7 @@ if (cluster.isPrimary) {
     }
 
     function readTraffic() {
-        return Promise.all([runShell(trafficScript), routeAddress()]).then(([text, address]) => {
+        return Promise.all([runShell(trafficCall), routeAddress()]).then(([text, address]) => {
             if (text === null) return null;
             let at = null;
             let list = [];
@@ -321,7 +346,7 @@ if (cluster.isPrimary) {
     }
 
     function readConnections() {
-        return Promise.all([runShell(connectionScript), runNetstat(["-ano"])]).then(([text, table]) => {
+        return Promise.all([runShell(connectionCall), runTool(netstatFile, ["-ano"])]).then(([text, table]) => {
             if (text === null || !lines(text).includes("OK")) return null;
             let owners = new Map();
             if (table !== null) lines(table).forEach(line => {
@@ -349,7 +374,7 @@ if (cluster.isPrimary) {
     }
 
     function readNames() {
-        return runShell(nameScript).then(text => {
+        return runShell(nameCall).then(text => {
             if (text === null || !lines(text).includes("OK")) return null;
             let found = new Map();
             lines(text).forEach(line => {
@@ -364,6 +389,54 @@ if (cluster.isPrimary) {
                 if (!names.includes(name) && names.length < 8) names.push(name);
             });
             return Array.from(found.entries());
+        });
+    }
+
+    function processShare(time, oldTime, total, before) {
+        let share = 0;
+        if (before.all > 0 && oldTime !== null) {
+            let delta = total - before.all;
+            share = (delta > 0) ? (time - oldTime) / delta * 100 : 0;
+        } else {
+            share = (total > 0) ? time / total * 100 : 0;
+        }
+        return (Number.isFinite(share) && share > 0) ? share : 0;
+    }
+
+    function readProcesses() {
+        return runShell(processCall).then(text => {
+            if (text === null || !lines(text).includes("OK")) return null;
+            let rows = [];
+            let seen = new Set();
+            lines(text).forEach(line => {
+                let parts = line.split("|");
+                if (parts[0] !== "P" || parts.length < 6 || rows.length >= 65536) return;
+                if (!parts.slice(1, 5).every(part => /^\d+$/.test(part))) return;
+                let row = {pid: Number(parts[1]), kernel: Number(parts[2]), user: Number(parts[3]), memory: Number(parts[4]), name: parts.slice(5).join("|").slice(0, 260)};
+                if (!Number.isSafeInteger(row.pid) || seen.has(row.pid) || ![row.kernel, row.user, row.memory].every(Number.isFinite)) return;
+                seen.add(row.pid);
+                rows.push(row);
+            });
+            let before = processTimes;
+            let olds = rows.map(row => {
+                let old = before.list.get(row.pid);
+                return (old && old.name === row.name && row.user >= old.user && row.kernel >= old.kernel) ? old : null;
+            });
+            let user = before.user;
+            let kernel = before.kernel;
+            rows.forEach((row, i) => {
+                user += row.user - (olds[i] ? olds[i].user : 0);
+                kernel += row.kernel - (olds[i] ? olds[i].kernel : 0);
+            });
+            let total = user + kernel;
+            let list = rows.map((row, i) => {
+                let userShare = processShare(row.user, olds[i] ? olds[i].user : null, total, before);
+                let kernelShare = processShare(row.kernel, olds[i] ? olds[i].kernel : null, total, before);
+                let cpu = userShare + kernelShare;
+                return {pid: row.pid, name: row.name, cpu: (cpu > 100) ? 100 : cpu, memRss: Math.floor(row.memory / 1024)};
+            });
+            processTimes = {all: total, user, kernel, list: new Map(rows.map(row => [row.pid, {name: row.name, user: row.user, kernel: row.kernel}]))};
+            return {all: list.length, list};
         });
     }
 
@@ -382,6 +455,8 @@ if (cluster.isPrimary) {
             if (!isClosedChannel(e)) signale.error("Could not send a systeminformation reply:", e);
         }
     }
+
+    shellReady();
 
     process.on("message", msg => {
         let id;
