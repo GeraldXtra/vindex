@@ -243,16 +243,12 @@ const vindex = Object.freeze({
     onDirChange: callback => {
         return listen("fs-watch-event", callback);
     },
-    startGeoIP: () => {
-        return ipcRenderer.invoke("geoip-start");
+    netPlaces: addresses => {
+        requireValid(Array.isArray(addresses) && addresses.length <= 64 && addresses.every(address => typeof address === "string"), "Addresses must be a list of at most 64 strings");
+        return ipcRenderer.invoke("net-places", addresses.slice());
     },
-    geoLookup: ip => {
-        requireValid(typeof ip === "string", "IP address must be a string");
-        return ipcRenderer.invoke("geoip-lookup", ip);
-    },
-    lookupPublicIP: localAddress => {
-        requireValid(typeof localAddress === "string", "Local address must be a string");
-        return ipcRenderer.invoke("netstat-public-ip", localAddress);
+    netHome: () => {
+        return ipcRenderer.invoke("net-home");
     },
     ping: (target, localAddress) => {
         requireValid(typeof target === "string", "Ping target must be a string");

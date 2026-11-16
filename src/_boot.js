@@ -36,7 +36,6 @@ const url = require("url");
 const fs = require("fs");
 const os = require("os");
 const net = require("net");
-const https = require("https");
 const which = require("which");
 const Terminal = require("./classes/terminal.class.js").Terminal;
 
@@ -391,70 +390,89 @@ function watchDir(dir) {
     dirWatcher = watcher;
 }
 
-let geoIPReader = null;
-let geoIPLoading = null;
+const geoDir = path.join(__dirname, "assets", "geo");
+let geoReader = null;
+let geoOpening = null;
+let geoPlaces = null;
 
-function geoLocation(ip) {
-    if (geoIPReader === null) return null;
-    let data = geoIPReader.get(ip);
-    if (!data || !data.location || typeof data.location.latitude !== "number" || typeof data.location.longitude !== "number") return null;
-    return {
-        latitude: data.location.latitude,
-        longitude: data.location.longitude
-    };
+function readGeoPlaces() {
+    if (geoPlaces !== null) return geoPlaces;
+    geoPlaces = {countries: {}, zones: {}};
+    try {
+        let data = JSON.parse(fs.readFileSync(path.join(geoDir, "places.json"), {encoding: "utf-8"}));
+        if (isPlainObject(data) && isPlainObject(data.countries) && isPlainObject(data.zones)) {
+            geoPlaces = {countries: data.countries, zones: data.zones};
+        } else {
+            signale.error("places.json does not contain a country list and a time zone list");
+        }
+    } catch(err) {
+        signale.error("Could not read places.json:", err);
+    }
+    return geoPlaces;
 }
 
-const publicIPAgent = new https.Agent({
-    keepAlive: false,
-    maxSockets: 10
-});
-const publicIPFailures = new Map();
+function placePoint(table, key) {
+    if (typeof key !== "string" || !Object.prototype.hasOwnProperty.call(table, key)) return null;
+    let point = table[key];
+    if (!Array.isArray(point) || point.length !== 2 || !point.every(value => Number.isFinite(value))) return null;
+    if (Math.abs(point[0]) > 90 || Math.abs(point[1]) > 180) return null;
+    return {latitude: point[0], longitude: point[1]};
+}
 
-function fetchPublicIPReply(localAddress) {
-    return new Promise(resolve => {
-        let finished = false;
-        let request = null;
-        let timer = null;
-        let finish = body => {
-            if (finished) return;
-            finished = true;
-            clearTimeout(timer);
-            if (body === null && request !== null) request.destroy();
-            resolve(body);
-        };
-        let fail = () => {
-            finish(null);
-        };
-        let guard = listener => guardListener("Could not read the reply from myexternalip.com:", listener, fail);
-        request = https.get({host: "myexternalip.com", port: 443, path: "/json", localAddress, agent: publicIPAgent}, guard(res => {
-            let chunks = [];
-            let size = 0;
-            res.on("data", guard(chunk => {
-                size += chunk.length;
-                if (size > 65536) {
-                    fail();
-                } else {
-                    chunks.push(chunk);
-                }
-            }));
-            res.on("end", guard(() => {
-                finish(Buffer.concat(chunks).toString());
-            }));
-            res.on("aborted", guard(fail));
-            res.on("error", guard(fail));
-        }));
-        request.on("error", guard(fail));
-        timer = setTimeout(guard(fail), 10000);
+function openGeoReader() {
+    if (geoOpening === null) {
+        geoOpening = require("maxmind").open(path.join(geoDir, "user-country.mmdb")).then(reader => {
+            geoReader = reader;
+            return true;
+        }).catch(err => {
+            signale.error("Could not open the country table:", err);
+            return false;
+        });
+    }
+    return geoOpening;
+}
+
+function countryOf(ip) {
+    if (geoReader === null) return null;
+    try {
+        let data = geoReader.get(ip);
+        let code = (data && typeof data.country_code === "string") ? data.country_code : "";
+        return /^[A-Z]{2}$/.test(code) ? code : null;
+    } catch(err) {
+        return null;
+    }
+}
+
+async function lookupPlaces(ips) {
+    await openGeoReader();
+    let places = readGeoPlaces();
+    return ips.map(ip => {
+        let country = countryOf(ip);
+        if (country === null) return null;
+        let point = placePoint(places.countries, country);
+        return {country, latitude: point ? point.latitude : null, longitude: point ? point.longitude : null};
     });
 }
 
-function notePublicIPFailure(err) {
-    let key = String(err);
-    let count = (publicIPFailures.get(key) || 0) + 1;
-    publicIPFailures.set(key, count);
-    if (count > 2) return;
-    signale.note("NetStat: Error parsing data from myexternalip.com");
-    signale.debug(`Error: ${err}`);
+function homePlace() {
+    let places = readGeoPlaces();
+    let zone = "";
+    try {
+        zone = String(Intl.DateTimeFormat().resolvedOptions().timeZone || "");
+    } catch(err) {
+        zone = "";
+    }
+    let point = placePoint(places.zones, zone);
+    if (point !== null) return {zone, country: "", latitude: point.latitude, longitude: point.longitude};
+    let country = "";
+    try {
+        country = String(app.getLocaleCountryCode() || "").toUpperCase();
+    } catch(err) {
+        country = "";
+    }
+    point = placePoint(places.countries, country);
+    if (point !== null) return {zone, country, latitude: point.latitude, longitude: point.longitude};
+    return null;
 }
 
 function ping(target, localAddress) {
@@ -618,39 +636,8 @@ onWindowMessage("fs-watch-start", args => args.length === 1 && isSafePath(args[0
 onWindowMessage("fs-watch-stop", hasNoArgs, () => {
     closeDirWatcher();
 });
-handleWindowRequest("geoip-start", hasNoArgs, () => {
-    if (geoIPLoading === null) {
-        let geolite2 = require("geolite2-redist");
-        let maxmind = require("maxmind");
-        geoIPLoading = geolite2.downloadDbs(path.join(app.getPath("userData"), "geoIPcache")).then(() => {
-            return geolite2.open("GeoLite2-City", dbPath => maxmind.open(dbPath));
-        }).then(reader => {
-            geoIPReader = reader;
-            return true;
-        }).catch(err => {
-            signale.error("Could not load the GeoIP database:", err);
-            geoIPLoading = null;
-            return false;
-        });
-    }
-    return geoIPLoading;
-}, false);
-handleWindowRequest("geoip-lookup", args => args.length === 1 && typeof args[0] === "string" && net.isIP(args[0]) !== 0, (e, ip) => geoLocation(ip), null);
-handleWindowRequest("netstat-public-ip", args => args.length === 1 && typeof args[0] === "string" && net.isIPv4(args[0]), async (e, localAddress) => {
-    if (geoIPReader === null) return null;
-    let body = await fetchPublicIPReply(localAddress);
-    if (body === null) return null;
-    try {
-        let data = JSON.parse(body);
-        if (typeof data.ip !== "string" || net.isIP(data.ip) === 0) throw new Error("The reply has no valid IP address");
-        let location = geoLocation(data.ip);
-        if (location === null) throw new Error("No location was found for this IP address");
-        return {ip: data.ip, location};
-    } catch(err) {
-        notePublicIPFailure(err);
-        return null;
-    }
-}, null);
+handleWindowRequest("net-places", args => args.length === 1 && Array.isArray(args[0]) && args[0].length <= 64 && args[0].every(ip => typeof ip === "string" && net.isIP(ip) !== 0), (e, ips) => lookupPlaces(ips), null);
+handleWindowRequest("net-home", hasNoArgs, () => homePlace(), null);
 handleWindowRequest("netstat-ping", args => args.length === 2 && isPingTarget(args[0]) && typeof args[1] === "string" && net.isIPv4(args[1]), (e, target, localAddress) => ping(target, localAddress), null);
 
 // Unset proxy env variables to avoid connection problems on the internal websockets
@@ -714,7 +701,7 @@ function copyOldUserData(oldDir) {
             skipped.push(`${name} (failed: ${(e && e.message) || e})`);
         }
     });
-    ["themes", "keyboards", "fonts", "geoIPcache"].forEach(name => {
+    ["themes", "keyboards", "fonts"].forEach(name => {
         let from = path.join(oldDir, name);
         let to = path.join(newDir, name);
         try {

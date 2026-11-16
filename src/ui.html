@@ -34,6 +34,7 @@
         <script src="classes/audiofx.class.js"></script>
         <script src="classes/bootScreen.class.js"></script>
         <script src="classes/systemMonitor.class.js"></script>
+        <script src="classes/networkMonitor.class.js"></script>
     </head>
     <body class="solidBackground">
         <section id="boot_screen">
@@ -135,8 +136,8 @@
                     </section>
                     <section class="vx-panel vx-panel-network" aria-label="Network">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>
-                        <div class="vx-panel-head"><span class="vx-panel-number">08</span><span class="vx-panel-title">NETWORK</span><span class="vx-rule" aria-hidden="true"></span></div>
-                        <div class="vx-placeholder">NOT BUILT YET</div>
+                        <div class="vx-panel-head"><span class="vx-panel-number">08</span><span class="vx-panel-title">NETWORK</span><span class="vx-rule" aria-hidden="true"></span><span id="vx-net-meta" class="vx-panel-meta vx-net-meta" hidden></span></div>
+                        <div id="vx-net-body" class="vx-net-body"></div>
                     </section>
                     <section class="vx-panel vx-panel-fill vx-panel-processes" aria-label="Processes">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>

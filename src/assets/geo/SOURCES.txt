@@ -1,0 +1,15 @@
+Where the network panel data comes from
+
+user-country.mmdb
+Matches internet addresses to countries, on this PC only.
+Source: ip-location-db, user-country table, built 15 November 2026
+https://github.com/sapics/ip-location-db
+License: PDDL 1.0, public domain
+SHA-256: 6e37979eb70d0d59c1730af8b076bf9736ebab818e3b03369a56028d585b685b
+
+places.json
+countries: the point where each country's name sits on the Natural Earth map 1:10m Admin 0 Countries, public domain
+https://www.naturalearthdata.com
+Ten small territories that map does not list (BQ, CC, CX, GF, GP, MQ, RE, SJ, TK, YT) use their main city from the time zone database. AN uses the point of CW.
+zones: the main city of each time zone from the IANA time zone database 2026e, files zone.tab and backward, public domain
+https://www.iana.org/time-zones

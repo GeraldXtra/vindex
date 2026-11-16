@@ -24,6 +24,7 @@ class SystemMonitor {
         this.processFailed = false;
         this.processCount = null;
         this.processList = null;
+        this.processNames = new Map();
         this.processRows = [];
         this.buildSystem();
         this.buildCpu();
@@ -279,7 +280,7 @@ class SystemMonitor {
             this.readCpu();
             this.readSystem();
             this.readDisk();
-            if (!this.battery.live) this.readBattery();
+            if (!this.battery.live || this.battery.present === null) this.readBattery();
         }, 60000);
         this.pollProcesses();
     }
@@ -525,6 +526,7 @@ class SystemMonitor {
         this.processFailed = false;
         this.processSamples += 1;
         let list = data.list.filter(item => item && Number.isInteger(item.pid) && item.pid > 0);
+        this.processNames = new Map(list.map(item => [item.pid, SystemMonitor.processName(item.name)]));
         this.processCount = list.length;
         SystemMonitor.setMeta(this.processMeta, list.length + " · sort CPU");
         this.renderFoot();

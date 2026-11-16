@@ -412,12 +412,15 @@ async function initUI() {
 
     window.systemMonitor = new SystemMonitor();
     window.systemMonitor.start();
+    window.networkMonitor = new NetworkMonitor();
+    window.networkMonitor.start();
 
     return unusableLayout;
 }
 
-function startProcessList() {
+function startLiveLists() {
     if (window.systemMonitor) window.systemMonitor.startProcesses();
+    if (window.networkMonitor) window.networkMonitor.startConnections();
 }
 
 function revealUI(intro) {
@@ -464,7 +467,7 @@ async function showWelcome(displayName, status) {
     }
     let note = document.createElement("div");
     note.className = "vx-welcome-note";
-    note.textContent = status + " · nothing leaves this PC";
+    note.textContent = status + ((window.settings.latencyCheck === true) ? " · latency check on" : " · nothing leaves this PC");
     card.appendChild(note);
     document.getElementById("vx-term-body").appendChild(card);
     setTimeout(() => card.remove(), 3200);
@@ -902,6 +905,7 @@ window.writeSettingsFile = async () => {
         iface: document.getElementById("settingsEditor-iface").value,
         allowWindowed: (document.getElementById("settingsEditor-allowWindowed").value === "true"),
         forceFullscreen: window.settings.forceFullscreen,
+        latencyCheck: window.settings.latencyCheck,
         keepGeometry: (document.getElementById("settingsEditor-keepGeometry").value === "true"),
         excludeThreadsFromToplist: (document.getElementById("settingsEditor-excludeThreadsFromToplist").value === "true"),
         hideDotfiles: (document.getElementById("settingsEditor-hideDotfiles").value === "true"),
@@ -1233,7 +1237,7 @@ async function startup() {
             waitForFonts().then(initUI).then(unusableLayout => {
                 revealUI(false);
                 warnKeyboard(unusableLayout);
-                startProcessList();
+                startLiveLists();
             }).catch(showInterfaceError);
         } else {
             initSystemInformationProxy();
@@ -1266,7 +1270,7 @@ async function startup() {
                 setTimeout(() => {
                     document.getElementById("vx-app").classList.remove("vx-intro");
                     releaseModals();
-                    startProcessList();
+                    startLiveLists();
                 }, Math.max(0, boot.handoffAt + 2000 - performance.now()));
                 setTimeout(() => {
                     showWelcome(displayName, boot.readyMessage).catch(err => {
@@ -1278,7 +1282,7 @@ async function startup() {
                     document.getElementById("vx-app").classList.remove("vx-intro");
                     revealUI(false);
                     releaseModals();
-                    startProcessList();
+                    startLiveLists();
                 };
                 buildUI().then(reveal, reveal);
             }
