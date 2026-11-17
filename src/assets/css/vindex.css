@@ -467,6 +467,200 @@ html.vx-nocursor, html.vx-nocursor * {
     height: 145px;
 }
 
+#vx-app .vx-files-state {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--vx-text3);
+    white-space: nowrap;
+}
+
+#vx-app .vx-files-mark {
+    width: 5px;
+    height: 5px;
+    box-sizing: border-box;
+    border: 1px solid var(--vx-text3);
+}
+
+#vx-app .vx-files-state.vx-on {
+    color: var(--vx-accent);
+}
+
+#vx-app .vx-files-state.vx-on > .vx-files-mark {
+    border-color: var(--vx-accent);
+    background: var(--vx-accent);
+}
+
+#vx-app .vx-files-path {
+    height: 22px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px;
+    border-top: 1px solid var(--vx-line);
+    border-bottom: 1px solid var(--vx-line);
+    background: var(--vx-bg);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#vx-app .vx-files-crumbs {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    overflow: hidden;
+}
+
+#vx-app .vx-crumb {
+    flex: 0 0 auto;
+    color: var(--vx-text2);
+}
+
+#vx-app .vx-crumb:hover,
+#vx-app .vx-crumb.vx-crumb-here {
+    color: var(--vx-text);
+}
+
+#vx-app .vx-crumb.vx-crumb-here {
+    cursor: default;
+}
+
+#vx-app .vx-crumb-sep {
+    flex: 0 0 auto;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-crumb-gone {
+    display: none;
+}
+
+#vx-app .vx-files-count {
+    flex: 0 0 auto;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-files-tree {
+    flex: 1 1 0px;
+    min-height: 0;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    padding: 4px 0;
+    overflow-x: hidden;
+    overflow-y: auto;
+}
+
+#vx-app .vx-files-tree::-webkit-scrollbar {
+    width: 7px;
+}
+
+#vx-app .vx-files-tree::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#vx-app .vx-files-tree::-webkit-scrollbar-thumb {
+    border-left: 2px solid transparent;
+    border-right: 2px solid transparent;
+    background: var(--vx-strong);
+    background-clip: padding-box;
+}
+
+#vx-app .vx-file-row {
+    height: 22px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 12px 0 8px;
+    color: var(--vx-text2);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    white-space: nowrap;
+}
+
+#vx-app .vx-file-row.vx-dir,
+#vx-app .vx-file-row:hover {
+    color: var(--vx-text);
+}
+
+#vx-app .vx-file-row.vx-selected {
+    background: var(--vx-raised);
+    color: var(--vx-text);
+}
+
+#vx-app .vx-file-chev {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#vx-app .vx-file-chev-icon,
+#vx-app .vx-file-icon {
+    display: block;
+    flex: 0 0 auto;
+}
+
+#vx-app .vx-file-chev-icon > path,
+#vx-app .vx-file-icon > path {
+    fill: none;
+    stroke: var(--vx-text3);
+    stroke-width: 1;
+}
+
+#vx-app .vx-file-row.vx-dir .vx-file-icon > path {
+    stroke: var(--vx-text2);
+}
+
+#vx-app .vx-file-row.vx-selected .vx-file-icon > path {
+    stroke: var(--vx-accent);
+}
+
+#vx-app .vx-file-name {
+    flex: 1 1 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+#vx-app .vx-file-type {
+    flex: 0 0 auto;
+    font-size: 9px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-file-note {
+    height: 22px;
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    padding-right: 12px;
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    color: var(--vx-text3);
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#vx-app .vx-file-wait {
+    padding-left: 12px;
+}
+
 #vx-app .vx-panel-meta {
     flex: 0 1 auto;
     min-width: 0;
@@ -1290,21 +1484,79 @@ html.vx-nocursor, html.vx-nocursor * {
     background: transparent;
 }
 
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-ctrl-on="true"]) .vx-ind[data-mod="ctrl"],
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-alt-on="true"]) .vx-ind[data-mod="alt"],
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-shift-on="true"]) .vx-ind[data-mod="shift"],
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-caps-lck-on="true"]) .vx-ind[data-mod="caps"],
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-fn-on="true"]) .vx-ind[data-mod="fn"] {
+#vx-app .vx-ind.vx-on {
     color: var(--vx-text2);
 }
 
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-ctrl-on="true"]) .vx-ind[data-mod="ctrl"] > .vx-ind-mark,
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-alt-on="true"]) .vx-ind[data-mod="alt"] > .vx-ind-mark,
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-shift-on="true"]) .vx-ind[data-mod="shift"] > .vx-ind-mark,
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-caps-lck-on="true"]) .vx-ind[data-mod="caps"] > .vx-ind-mark,
-#vx-app section[aria-label="On-screen keyboard"]:has(#keyboard[data-is-fn-on="true"]) .vx-ind[data-mod="fn"] > .vx-ind-mark {
+#vx-app .vx-ind.vx-on > .vx-ind-mark {
     border-color: var(--vx-accent);
     background: var(--vx-accent);
+}
+
+#vx-app .vx-kb-heat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+#vx-app .vx-kb-label {
+    font-size: 9px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-kb-scale {
+    display: flex;
+    gap: 1px;
+}
+
+#vx-app .vx-kb-swatch {
+    width: 10px;
+    height: 8px;
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.08);
+}
+
+#vx-app .vx-kb-swatch:nth-child(2) {
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.14);
+}
+
+#vx-app .vx-kb-swatch:nth-child(3) {
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.21);
+}
+
+#vx-app .vx-kb-swatch:nth-child(4) {
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.28);
+}
+
+#vx-app .vx-kb-swatch:nth-child(5) {
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), 0.35);
+}
+
+#vx-app .vx-kb-note {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    color: var(--vx-text3);
+}
+
+#vx-app .vx-kb-stat {
+    display: flex;
+    align-items: baseline;
+    gap: 6px;
+}
+
+#vx-app .vx-kb-last,
+#vx-app .vx-kb-echo {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px;
+}
+
+#vx-app .vx-kb-last {
+    color: var(--vx-accent);
+}
+
+#vx-app .vx-kb-echo {
+    color: var(--vx-text2);
 }
 
 #vx-app #keyboard {
@@ -1319,18 +1571,13 @@ html.vx-nocursor, html.vx-nocursor * {
     cursor: none;
 }
 
-#vx-app #keyboard > .keyboard_row {
-    --u: calc((100% - 60px) / 16);
+#vx-app .vx-kb-row {
     display: flex;
-    flex-direction: row;
     gap: 4px;
-    height: 34px;
-    align-items: flex-start;
 }
 
-#vx-app #keyboard .keyboard_key {
-    --k: 1;
-    flex: 0 1 calc(var(--u) * var(--k) + 4px * (var(--k) - 1));
+#vx-app .vx-key {
+    flex: var(--vx-grow, 1) 1 0px;
     min-width: 0;
     height: 34px;
     box-sizing: border-box;
@@ -1340,6 +1587,8 @@ html.vx-nocursor, html.vx-nocursor * {
     justify-content: center;
     padding: 0 8px;
     border: 1px solid var(--vx-line);
+    outline: none;
+    outline-offset: 1px;
     background: transparent;
     color: var(--vx-text2);
     font-family: 'JetBrains Mono', monospace;
@@ -1349,218 +1598,85 @@ html.vx-nocursor, html.vx-nocursor * {
     white-space: nowrap;
     overflow: hidden;
     cursor: pointer;
+    touch-action: none;
 }
 
-#vx-app #keyboard[data-password-mode="true"] .keyboard_key {
+#vx-app #keyboard[data-password-mode="true"] .vx-key {
     cursor: none;
 }
 
-#vx-app #keyboard .keyboard_key > h1,
-#vx-app #keyboard .keyboard_key > h2,
-#vx-app #keyboard .keyboard_key > h3,
-#vx-app #keyboard .keyboard_key > h4,
-#vx-app #keyboard .keyboard_key > h5 {
-    margin: 0;
-    padding: 0;
-    font-weight: 400;
-}
-
-#vx-app #keyboard .keyboard_key > h1 {
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 0;
-}
-
-#vx-app #keyboard .keyboard_key > h2 {
-    position: absolute;
-    top: 3px;
-    left: 5px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    line-height: 10px;
-    letter-spacing: 0;
-    color: var(--vx-text3);
-}
-
-#vx-app #keyboard .keyboard_key > h3,
-#vx-app #keyboard .keyboard_key > h4,
-#vx-app #keyboard .keyboard_key > h5 {
-    display: none;
-}
-
-#vx-app #keyboard .keyboard_key > svg {
-    flex: 0 0 auto;
-    width: 18px;
-    height: 18px;
-    fill: currentColor;
-}
-
-#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:last-child {
-    --k: 2;
-}
-
-#vx-app #keyboard > [id="row_1"] > .keyboard_key:first-child,
-#vx-app #keyboard > [id="row_2"] > .keyboard_key:first-child {
-    --k: 1.75;
-}
-
-#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child,
-#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child {
-    --k: 2.25;
-}
-
-#vx-app #keyboard > [id="row_3"] > .keyboard_key:first-child,
-#vx-app #keyboard > [id="row_3"] > .keyboard_key:nth-last-child(2) {
-    --k: 1.5;
-}
-
-#vx-app #keyboard > [id="row_3"] > .keyboard_key:last-child {
-    margin-right: calc(var(--u) + 4px);
-}
-
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(1),
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(2),
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(4),
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(5) {
-    --k: 1.25;
-}
-
-#vx-app #keyboard > [id="row_space"] > #keyboard_spacebar {
-    --k: 8;
-}
-
-#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:first-child,
-#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:last-child,
-#vx-app #keyboard > [id="row_1"] > .keyboard_key:first-child,
-#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child,
-#vx-app #keyboard > [id="row_2"] > .keyboard_key:first-child,
-#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child,
-#vx-app #keyboard > [id="row_3"] > .keyboard_key:first-child,
-#vx-app #keyboard > [id="row_3"] > .keyboard_key:nth-last-child(2),
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(1),
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(2),
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(4),
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(5) {
+#vx-app .vx-key.vx-key-mod {
     justify-content: flex-start;
-    padding: 0 8px;
     color: var(--vx-text3);
-}
-
-#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:first-child > h1,
-#vx-app #keyboard > [id="row_numbers"] > .keyboard_key:last-child > h1,
-#vx-app #keyboard > [id="row_1"] > .keyboard_key:first-child > h1,
-#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child > h1,
-#vx-app #keyboard > [id="row_2"] > .keyboard_key:first-child > h1,
-#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child > h1,
-#vx-app #keyboard > [id="row_3"] > .keyboard_key:first-child > h1,
-#vx-app #keyboard > [id="row_3"] > .keyboard_key:nth-last-child(2) > h1,
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(1) > h1,
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(2) > h1,
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(4) > h1,
-#vx-app #keyboard > [id="row_space"] > .keyboard_key:nth-child(5) > h1 {
     font-family: 'Barlow Semi Condensed', sans-serif;
     font-size: 10px;
     font-weight: 600;
     letter-spacing: 0.12em;
 }
 
-#vx-app #keyboard > [id="row_1"] > .keyboard_key:last-child {
-    height: 38px;
-    border-bottom: 0;
-    z-index: 1;
+#vx-app .vx-key-top {
+    position: absolute;
+    top: 3px;
+    left: 5px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px;
+    line-height: 10px;
+    font-weight: 400;
+    letter-spacing: 0;
+    color: var(--vx-text3);
 }
 
-#vx-app #keyboard > [id="row_2"] > .keyboard_key:last-child {
-    border-top: 0;
+#vx-app .vx-key.vx-key-tight {
+    padding: 0 4px;
+    letter-spacing: 0.06em;
 }
 
-#vx-app #keyboard:not([data-password-mode="true"]) > .keyboard_row > .keyboard_key.active,
-#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- CAPSLCK: ON"],
-#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- FN: ON"] {
+#vx-app .vx-key-short-label,
+#vx-app .vx-key.vx-key-short > .vx-key-label {
+    display: none;
+}
+
+#vx-app .vx-key.vx-key-short > .vx-key-short-label {
+    display: inline;
+}
+
+#vx-app .vx-kb-head.vx-kb-fit-1 .vx-kb-note,
+#vx-app .vx-kb-head.vx-kb-fit-2 .vx-kb-heat,
+#vx-app .vx-kb-head.vx-kb-fit-3 .vx-kb-layout {
+    display: none;
+}
+
+#vx-app .vx-key.vx-hot {
+    border-color: var(--vx-strong);
+    background: rgba(var(--color_r), var(--color_g), var(--color_b), calc(0.06 + var(--vx-heat, 0) * 0.29));
+}
+
+#vx-app .vx-key.vx-hot-text {
+    color: var(--vx-text);
+}
+
+#vx-app .vx-key.vx-hot-edge,
+#vx-app .vx-key.vx-last {
+    border-color: var(--vx-accent);
+}
+
+#vx-app .vx-key.vx-last {
+    outline: 1px solid var(--vx-accent);
+}
+
+#vx-app .vx-key.vx-on {
+    border-color: var(--vx-accent);
+    color: var(--vx-accent);
+}
+
+#vx-app .vx-key.vx-down {
     border-color: var(--vx-accent);
     background: var(--vx-accent);
     color: var(--vx-ink);
 }
 
-#vx-app #keyboard:not([data-password-mode="true"]) > .keyboard_row > .keyboard_key.active > h2,
-#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- CAPSLCK: ON"] > h2,
-#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key[data-cmd="ESCAPED|-- FN: ON"] > h2 {
+#vx-app .vx-key.vx-down > .vx-key-top {
     color: inherit;
-}
-
-#vx-app #keyboard:not([data-password-mode="true"]) > .keyboard_row > .keyboard_key.blink {
-    animation: vx-key-blink 500ms linear infinite;
-}
-
-@keyframes vx-key-blink {
-    0% { background-color: transparent; }
-    50% { background-color: var(--vx-accent); }
-    100% { background-color: transparent; }
-}
-
-#vx-app #keyboard[data-is-shift-on="true"] > .keyboard_row > .keyboard_key:has(> h2:not(:empty)),
-#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key:has(> h2:not(:empty)),
-#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key:has(> h4:not(:empty)) {
-    justify-content: center;
-}
-
-#vx-app #keyboard[data-is-shift-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty),
-#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty) {
-    position: static;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    line-height: inherit;
-    letter-spacing: 0;
-    color: inherit;
-}
-
-#vx-app #keyboard[data-is-shift-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty) + h1,
-#vx-app #keyboard[data-is-caps-lck-on="true"] > .keyboard_row > .keyboard_key > h2:not(:empty) + h1 {
-    position: absolute;
-    top: 3px;
-    left: 5px;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 9px;
-    font-weight: 400;
-    line-height: 10px;
-    letter-spacing: 0;
-    color: var(--vx-text3);
-}
-
-#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) {
-    display: block;
-    position: static;
-    font-family: 'JetBrains Mono', monospace;
-    font-size: 13px;
-    letter-spacing: 0;
-}
-
-#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) ~ h2,
-#vx-app #keyboard[data-is-fn-on="true"] > .keyboard_row > .keyboard_key > h4:not(:empty) ~ h1 {
-    display: none;
-}
-
-#vx-app #keyboard > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) > h2 {
-    display: none;
-}
-
-#vx-app #keyboard:is([data-is-shift-on="true"], [data-is-caps-lck-on="true"]) > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) {
-    justify-content: flex-start;
-}
-
-#vx-app #keyboard:is([data-is-shift-on="true"], [data-is-caps-lck-on="true"]) > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) > h2:not(:empty) {
-    display: block;
-    position: static;
-    font-family: 'Barlow Semi Condensed', sans-serif;
-    font-size: 10px;
-    font-weight: 600;
-    line-height: inherit;
-    letter-spacing: 0.12em;
-    color: inherit;
-}
-
-#vx-app #keyboard:is([data-is-shift-on="true"], [data-is-caps-lck-on="true"]) > .keyboard_row > .keyboard_key:is([id="row_numbers"] > :first-child, [id="row_numbers"] > :last-child, [id="row_1"] > :first-child, [id="row_1"] > :last-child, [id="row_2"] > :first-child, [id="row_2"] > :last-child, [id="row_3"] > :first-child, [id="row_3"] > :nth-last-child(2), [id="row_space"] > :nth-child(1), [id="row_space"] > :nth-child(2), [id="row_space"] > :nth-child(4), [id="row_space"] > :nth-child(5)) > h2:not(:empty) + h1 {
-    display: none;
 }
 
 #vx-app.vx-ready.vx-intro {

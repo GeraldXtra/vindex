@@ -30,6 +30,7 @@
         <script src="classes/modal.class.js"></script>
         <script src="classes/terminal.class.js"></script>
         <script src="classes/keyboard.class.js"></script>
+        <script src="classes/explorer.class.js"></script>
         <!-- Load extra classes -->
         <script src="classes/audiofx.class.js"></script>
         <script src="classes/bootScreen.class.js"></script>
@@ -67,8 +68,9 @@
                 <div class="vx-column vx-column-left">
                     <section class="vx-panel vx-panel-fill vx-panel-explorer" aria-label="Explorer">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>
-                        <div class="vx-panel-head"><span class="vx-panel-number">01</span><span class="vx-panel-title">EXPLORER</span><span class="vx-rule" aria-hidden="true"></span></div>
-                        <div class="vx-placeholder">NOT BUILT YET</div>
+                        <div class="vx-panel-head"><span class="vx-panel-number">01</span><span class="vx-panel-title">EXPLORER</span><span class="vx-rule" aria-hidden="true"></span><span id="vx-files-state" class="vx-files-state"><span class="vx-files-mark" aria-hidden="true"></span><span id="vx-files-state-text"></span></span></div>
+                        <div class="vx-files-path"><span id="vx-files-crumbs" class="vx-files-crumbs"></span><span class="vx-spacer"></span><span id="vx-files-count" class="vx-files-count"></span></div>
+                        <div id="vx-files-tree" class="vx-files-tree"></div>
                     </section>
                     <section class="vx-panel vx-panel-repository" aria-label="Repository">
                         <span class="vx-corner vx-corner-tl" aria-hidden="true"></span><span class="vx-corner vx-corner-tr" aria-hidden="true"></span><span class="vx-corner vx-corner-bl" aria-hidden="true"></span><span class="vx-corner vx-corner-br" aria-hidden="true"></span>
@@ -117,8 +119,11 @@
                                 <span class="vx-ind" data-mod="alt"><span class="vx-ind-mark" aria-hidden="true"></span>ALT</span>
                                 <span class="vx-ind" data-mod="shift"><span class="vx-ind-mark" aria-hidden="true"></span>SHIFT</span>
                                 <span class="vx-ind" data-mod="caps"><span class="vx-ind-mark" aria-hidden="true"></span>CAPS</span>
-                                <span class="vx-ind" data-mod="fn"><span class="vx-ind-mark" aria-hidden="true"></span>FN</span>
                             </span>
+                            <span class="vx-rule" aria-hidden="true"></span>
+                            <span class="vx-kb-heat"><span class="vx-kb-label">HEAT</span><span class="vx-kb-scale" aria-hidden="true"><span class="vx-kb-swatch"></span><span class="vx-kb-swatch"></span><span class="vx-kb-swatch"></span><span class="vx-kb-swatch"></span><span class="vx-kb-swatch"></span></span><span class="vx-kb-note">this session</span></span>
+                            <span class="vx-kb-stat"><span class="vx-kb-label">LAST</span><span id="vx-kb-last" class="vx-kb-last">—</span></span>
+                            <span class="vx-kb-stat"><span class="vx-kb-label">ECHO</span><span id="vx-kb-echo" class="vx-kb-echo">—</span></span>
                         </div>
                         <div id="keyboard"></div>
                     </section>

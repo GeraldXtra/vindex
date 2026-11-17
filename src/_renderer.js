@@ -223,10 +223,21 @@ function showShellRenderer(renderer) {
 function wireShellTerminal(number) {
     let term = window.term[number];
     term.oncwdchange = cwd => {
-        if (window.currentTerm === number) showShellCwd(cwd);
+        if (window.currentTerm !== number) return;
+        showShellCwd(cwd);
+        if (window.explorer) window.explorer.follow(term);
     };
     term.onsizechange = (cols, rows) => {
         if (window.currentTerm === number) showShellSize(cols, rows);
+    };
+    term.onprompt = () => {
+        if (window.currentTerm === number && window.explorer) window.explorer.refresh();
+    };
+    term.onuserinput = data => {
+        if (window.currentTerm === number && window.keyboard) window.keyboard.noteInput(data);
+    };
+    term.onoutput = data => {
+        if (window.currentTerm === number && window.keyboard) window.keyboard.noteOutput(data);
     };
 }
 
@@ -325,10 +336,13 @@ async function readKeyboardLayoutSafely(name) {
     }
 }
 
-function buildKeyboard(layout) {
+function buildKeyboard(layout, name) {
+    let carry = (window.keyboard instanceof Keyboard) ? window.keyboard.stats() : null;
     document.getElementById("keyboard").textContent = "";
     window.keyboard = new Keyboard({
         layout,
+        name,
+        carry,
         container: "keyboard"
     });
 }
@@ -338,7 +352,7 @@ async function startKeyboard() {
     let layout = await readKeyboardLayoutSafely(wanted);
     if (layout !== null) {
         try {
-            buildKeyboard(layout);
+            buildKeyboard(layout, wanted);
             return null;
         } catch(err) {
             window.vindex.log("error", "Could not build the keyboard layout " + String(wanted) + ": " + String((err && err.message) || err));
@@ -347,7 +361,7 @@ async function startKeyboard() {
     if (wanted === "en-US") throw new Error("Could not load the keyboard layout en-US.");
     let fallback = await readKeyboardLayoutSafely("en-US");
     if (fallback === null) throw new Error("Could not load the keyboard layout " + String(wanted) + ".");
-    buildKeyboard(fallback);
+    buildKeyboard(fallback, "en-US");
     window.settings.keyboard = "en-US";
     window.vindex.log("error", "Keyboard layout " + String(wanted) + " could not be used, using en-US");
     return String(wanted);
@@ -369,7 +383,6 @@ async function initUI() {
     startBattery();
 
     let unusableLayout = await startKeyboard();
-    document.getElementById("vx-kb-layout").textContent = settings.keyboard;
     document.getElementById("vx-term-input").textContent = "INPUT " + settings.keyboard;
 
     let fontSize = terminalFontSize();
@@ -379,6 +392,7 @@ async function initUI() {
     ]);
 
     document.getElementById("terminal0").classList.add("active");
+    window.explorer = new Explorer();
     window.term = {
         0: new Terminal({
             role: "client",
@@ -394,6 +408,7 @@ async function initUI() {
         window.renderShellTabs();
     };
     wireShellTerminal(0);
+    window.explorer.follow(window.term[0]);
     showShellSize(window.term[0].term.cols, window.term[0].term.rows);
     showShellRenderer(window.term[0].renderer);
 
@@ -551,9 +566,8 @@ window.themeChanger = theme => {
 window.remakeKeyboard = async layout => {
     let layoutData = await window.vindex.readKeyboardLayout(layout);
     if (layoutData === null) throw new Error(`Could not load the keyboard layout "${layout}".`);
-    buildKeyboard(layoutData);
+    buildKeyboard(layoutData, layout);
     window.vindex.setKbOverride(layout);
-    document.getElementById("vx-kb-layout").textContent = layout;
     document.getElementById("vx-term-input").textContent = "INPUT " + layout;
 };
 
@@ -1097,8 +1111,8 @@ window.useAppShortcut = action => {
             window.fsDisp.toggleListview();
             return true;
         case "FS_DOTFILES":
-            if (!window.fsDisp) return false;
-            window.fsDisp.toggleHidedotfiles();
+            if (!window.explorer) return false;
+            window.explorer.toggleDotfiles();
             return true;
         case "KB_PASSMODE":
             window.keyboard.togglePasswordMode();

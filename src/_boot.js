@@ -390,6 +390,79 @@ function watchDir(dir) {
     dirWatcher = watcher;
 }
 
+const explorerLimit = 1000;
+const explorerLinkLimit = 5000;
+
+function isExplorerPath(value) {
+    if (!isSafePath(value) || /[\x00-\x1f\x7f]/.test(value) || !path.isAbsolute(value)) return false;
+    if (process.platform === "win32") return /^[A-Za-z]:[\\/]/.test(value);
+    return value.startsWith("/");
+}
+
+function isNetworkTarget(target) {
+    return typeof target === "string" && /^([\\/]{2}|[\\/]\?\?[\\/]UNC[\\/])/i.test(target);
+}
+
+function explorerError(err) {
+    let code = (err && err.code) ? String(err.code) : "";
+    if (code === "EACCES" || code === "EPERM") return "ACCESS DENIED";
+    if (code === "ENOENT") return "NOT FOUND";
+    if (code === "ENOTDIR") return "NOT A FOLDER";
+    return "UNREADABLE";
+}
+
+async function explorerEntry(dir, entry, linksLeft) {
+    let item = {name: entry.name, kind: entry.isDirectory() ? "dir" : (entry.isFile() ? "file" : "other"), link: false};
+    if (!entry.isSymbolicLink()) return item;
+    if (linksLeft.count <= 0) {
+        item.kind = "file";
+        return item;
+    }
+    linksLeft.count--;
+    let target = path.join(dir, entry.name);
+    let pointsTo = null;
+    try {
+        pointsTo = await fs.promises.readlink(target);
+        item.link = true;
+    } catch(err) {
+        pointsTo = null;
+    }
+    if (isNetworkTarget(pointsTo)) {
+        item.kind = "network";
+        return item;
+    }
+    try {
+        item.kind = (await fs.promises.stat(target)).isDirectory() ? "dir" : "file";
+    } catch(err) {
+        item.kind = "other";
+    }
+    return item;
+}
+
+function explorerOrder(a, b) {
+    let ad = (a.kind === "dir") ? 0 : 1;
+    let bd = (b.kind === "dir") ? 0 : 1;
+    if (ad !== bd) return ad - bd;
+    let al = a.name.toLowerCase();
+    let bl = b.name.toLowerCase();
+    if (al !== bl) return (al < bl) ? -1 : 1;
+    return (a.name < b.name) ? -1 : ((a.name > b.name) ? 1 : 0);
+}
+
+async function listExplorerFolder(dir) {
+    let place = path.resolve(dir);
+    let entries;
+    try {
+        entries = await fs.promises.readdir(place, {withFileTypes: true});
+    } catch(err) {
+        return {path: place, error: explorerError(err)};
+    }
+    let linksLeft = {count: explorerLinkLimit};
+    let items = await Promise.all(entries.map(entry => explorerEntry(place, entry, linksLeft)));
+    items.sort(explorerOrder);
+    return {path: place, total: items.length, truncated: items.length > explorerLimit, items: items.slice(0, explorerLimit)};
+}
+
 const geoDir = path.join(__dirname, "assets", "geo");
 let geoReader = null;
 let geoOpening = null;
@@ -636,6 +709,7 @@ onWindowMessage("fs-watch-start", args => args.length === 1 && isSafePath(args[0
 onWindowMessage("fs-watch-stop", hasNoArgs, () => {
     closeDirWatcher();
 });
+handleWindowRequest("explorer-list", args => args.length === 1 && isExplorerPath(args[0]), (e, dir) => listExplorerFolder(dir), {error: "UNREADABLE"});
 handleWindowRequest("net-places", args => args.length === 1 && Array.isArray(args[0]) && args[0].length <= 64 && args[0].every(ip => typeof ip === "string" && net.isIP(ip) !== 0), (e, ips) => lookupPlaces(ips), null);
 handleWindowRequest("net-home", hasNoArgs, () => homePlace(), null);
 handleWindowRequest("netstat-ping", args => args.length === 2 && isPingTarget(args[0]) && typeof args[1] === "string" && net.isIPv4(args[1]), (e, target, localAddress) => ping(target, localAddress), null);

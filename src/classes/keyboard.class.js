@@ -2,9 +2,10 @@ class Keyboard {
     constructor(opts) {
         if (!opts.layout || !opts.container) throw "Missing options";
 
-        const layout = opts.layout;
-        this.ctrlseq = ["", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", "", ""];
+        this.name = (typeof opts.name === "string") ? opts.name : "";
         this.container = document.getElementById(opts.container);
+        this.rows = Keyboard.arrange(opts.layout, this.name);
+        this.family = Keyboard.family(this.name, this.rows);
 
         this.linkedToTerm = true;
         this.detach = () => {
@@ -14,553 +15,659 @@ class Keyboard {
             this.linkedToTerm = true;
         };
 
-        // Set default keyboard properties
-        this.container.dataset.isShiftOn = false;
-        this.container.dataset.isCapsLckOn = false;
-        this.container.dataset.isAltOn = false;
-        this.container.dataset.isCtrlOn = false;
-        this.container.dataset.isFnOn = false;
-
         this.container.dataset.passwordMode = false;
 
-        // Build arrays for enabling keyboard shortcuts
-        this._shortcuts = {
-            CtrlAltShift: [],
-            CtrlAlt: [],
-            CtrlShift: [],
-            AltShift: [],
-            Ctrl: [],
-            Alt: [],
-            Shift: []
-        };
-        window.shortcuts.forEach(scut => {
-            let cut = Object.assign({}, scut);
-            let mods = cut.trigger.split("+");
-            cut.trigger = mods.pop();
-
-            let order = ["Ctrl", "Alt", "Shift"];
-            mods.sort((a, b) => {
-                return order.indexOf(a) - order.indexOf(b);
-            });
-
-            let cat = mods.join("");
-            
-            if (cut.type === "app" && cut.action === "TAB_X" && cut.trigger === "X") {
-                for (let i = 1; i <= 5; i++) {
-                    let ncut = Object.assign({}, cut);
-                    ncut.trigger = `${i}`;
-                    ncut.action = `TAB_${i}`;
-                    this._shortcuts[cat].push(ncut);
-                }
-            } else {
-                this._shortcuts[cat].push(cut);
-            }
+        let carry = (opts.carry && typeof opts.carry === "object") ? opts.carry : null;
+        this.counts = new Map(carry ? carry.counts : []);
+        this.maxCount = 0;
+        this.counts.forEach(count => {
+            if (count > this.maxCount) this.maxCount = count;
         });
+        this.lastCode = carry ? carry.lastCode : null;
+        this.lastText = carry ? carry.lastText : "—";
+        this.echoSamples = carry ? carry.echoSamples.slice() : [];
+        this.echoStart = null;
+        this.waiting = [];
+        this.latched = {ctrl: false, alt: false, shift: false, caps: false};
+        this.held = {ctrl: false, alt: false, shift: false, caps: false};
+        this.dead = null;
+        this.pointers = new Map();
+        this.elements = new Map();
+        this.specs = new Map();
+        this._shortcuts = Keyboard.shortcutTable();
 
-        // Parse keymap and create DOM
-        Object.keys(layout).forEach(row => {
-            this.container.innerHTML += `<div class="keyboard_row" id="`+row+`"></div>`;
-            layout[row].forEach(keyObj => {
+        this.build();
+        this.renderHeat();
+        this.renderHead();
+        Keyboard.listen();
+    }
 
-                let key = document.createElement("div");
-                key.setAttribute("class", "keyboard_key");
-
-                if (keyObj.cmd === " ") {
-                    key.setAttribute("id", "keyboard_spacebar");
-                } else if (keyObj.cmd === "\r") {
-                    key.setAttribute("class", "keyboard_key keyboard_enter");
-                    key.innerHTML = `<h1>${keyObj.name}</h1>`;
-                } else {
-                    key.innerHTML = `
-                        <h5>${keyObj.altshift_name || ""}</h5>
-                        <h4>${keyObj.fn_name || ""}</h4>
-                        <h3>${keyObj.alt_name || ""}</h3>
-                        <h2>${keyObj.shift_name || ""}</h2>
-                        <h1>${keyObj.name || ""}</h1>`;
-                }
-
-                // Icon support, overrides previously defined innerHTML
-                // Arrow and other icons
-                let icon = null;
-                if (keyObj.name.startsWith("ESCAPED|-- ICON: ")) {
-                    keyObj.name = keyObj.name.substr(17);
-                    switch(keyObj.name) {
-                        case "ARROW_UP":
-                            icon = `<svg viewBox="0 0 24.00 24.00"><path fill-opacity="1" d="m12.00004 7.99999 4.99996 5h-2.99996v4.00001h-4v-4.00001h-3z"/><path stroke-linejoin="round" fill-opacity="0.65" d="m4 3h16c1.1046 0 1-0.10457 1 1v16c0 1.1046 0.1046 1-1 1h-16c-1.10457 0-1 0.1046-1-1v-16c0-1.10457-0.10457-1 1-1zm0 1v16h16v-16z"/></svg>`;
-                            break;
-                        case "ARROW_LEFT":
-                            icon = `<svg viewBox="0 0 24.00 24.00"><path fill-opacity="1" d="m7.500015 12.499975 5-4.99996v2.99996h4.00001v4h-4.00001v3z"/><path stroke-linejoin="round" fill-opacity="0.65" d="m4 3h16c1.1046 0 1-0.10457 1 1v16c0 1.1046 0.1046 1-1 1h-16c-1.10457 0-1 0.1046-1-1v-16c0-1.10457-0.10457-1 1-1zm0 1v16h16v-16z"/></svg>`;
-                            break;
-                        case "ARROW_DOWN":
-                            icon = `<svg viewBox="0 0 24.00 24.00"><path fill-opacity="1" d="m12 17-4.99996-5h2.99996v-4.00001h4v4.00001h3z"/><path stroke-linejoin="round" fill-opacity="0.65" d="m4 3h16c1.1046 0 1-0.10457 1 1v16c0 1.1046 0.1046 1-1 1h-16c-1.10457 0-1 0.1046-1-1v-16c0-1.10457-0.10457-1 1-1zm0 1v16h16v-16z"/></svg>`;
-                            break;
-                        case "ARROW_RIGHT":
-                            icon = `<svg viewBox="0 0 24.00 24.00"><path fill-opacity="1" d="m16.500025 12.500015-5 4.99996v-2.99996h-4.00001v-4h4.00001v-3z"/><path stroke-linejoin="round" fill-opacity="0.65" d="m4 3h16c1.1046 0 1-0.10457 1 1v16c0 1.1046 0.1046 1-1 1h-16c-1.10457 0-1 0.1046-1-1v-16c0-1.10457-0.10457-1 1-1zm0 1v16h16v-16z"/></svg>`;
-                            break;
-                        default:
-                            icon = `<svg viewBox="0 0 24.00 24.00"><path fill="#ff0000" fill-opacity="1" d="M 8.27125,2.9978L 2.9975,8.27125L 2.9975,15.7275L 8.27125,21.0012L 15.7275,21.0012C 17.485,19.2437 21.0013,15.7275 21.0013,15.7275L 21.0013,8.27125L 15.7275,2.9978M 9.10125,5L 14.9025,5L 18.9988,9.10125L 18.9988,14.9025L 14.9025,18.9988L 9.10125,18.9988L 5,14.9025L 5,9.10125M 9.11625,7.705L 7.705,9.11625L 10.5912,12.0025L 7.705,14.8825L 9.11625,16.2937L 12.0025,13.4088L 14.8825,16.2937L 16.2938,14.8825L 13.4087,12.0025L 16.2938,9.11625L 14.8825,7.705L 12.0025,10.5913"/></svg>`;
-                    }
-
-                    key.innerHTML = icon;
-                }
-
-                Object.keys(keyObj).forEach(property => {
-                    for (let i = 1; i < this.ctrlseq.length; i++) {
-                        keyObj[property] = keyObj[property].replace("~~~CTRLSEQ"+i+"~~~", this.ctrlseq[i]);
-                    }
-                    if (property.endsWith("cmd")) {
-                        key.dataset[property] = keyObj[property];
-                    }
-                });
-
-                document.getElementById(row).appendChild(key);
-            });
-        });
-
-        this.container.childNodes.forEach(row => {
-            row.childNodes.forEach(key => {
-
-                let enterElements = document.querySelectorAll(".keyboard_enter");
-
-                if (key.attributes["class"].value.endsWith("keyboard_enter")) {
-                    // The enter key is divided in two dom elements, so we bind their animations here
-
-                    key.onmousedown = e => {
-                        this.pressKey(key);
-                        key.holdTimeout = setTimeout(() => {
-                            key.holdInterval = setInterval(() => {
-                                this.pressKey(key);
-                            }, 70);
-                        }, 400);
-
-                        enterElements.forEach(key => {
-                            key.setAttribute("class", "keyboard_key active keyboard_enter");
-                        });
-
-                        // Keep focus on the terminal
-                        if (window.keyboard.linkedToTerm) window.term[window.currentTerm].term.focus();
-                        if (this.container.dataset.passwordMode == "false")
-                            window.audioManager.granted.play();
-                        e.preventDefault();
-                    };
-                    key.onmouseup = () => {
-                        clearTimeout(key.holdTimeout);
-                        clearInterval(key.holdInterval);
-
-                        enterElements.forEach(key => {
-                            key.setAttribute("class", "keyboard_key blink keyboard_enter");
-                        });
-                        setTimeout(() => {
-                            enterElements.forEach(key => {
-                                key.setAttribute("class", "keyboard_key keyboard_enter");
-                            });
-                        }, 100);
-                    };
-                } else {
-                    key.onmousedown = e => {
-                        if (/^ESCAPED\|-- (CTRL|SHIFT|ALT){1}.*/.test(key.dataset.cmd)) {
-                            let cmd = key.dataset.cmd.substr(11);
-                            if (cmd.startsWith("CTRL")) {
-                                this.container.dataset.isCtrlOn = "true";
-                            }
-                            if (cmd.startsWith("SHIFT")) {
-                                this.container.dataset.isShiftOn = "true";
-                            }
-                            if (cmd.startsWith("ALT")) {
-                                this.container.dataset.isAltOn = "true";
-                            }
-                        } else {
-                            key.holdTimeout = setTimeout(() => {
-                                key.holdInterval = setInterval(() => {
-                                    this.pressKey(key);
-                                }, 70);
-                            }, 400);
-                            this.pressKey(key);
-                        }
-
-                        // Keep focus on the terminal
-                        if (window.keyboard.linkedToTerm) window.term[window.currentTerm].term.focus();
-                        if(this.container.dataset.passwordMode == "false")
-                            window.audioManager.stdin.play();
-                        e.preventDefault();
-                    };
-                    key.onmouseup = e => {
-                        if (/^ESCAPED\|-- (CTRL|SHIFT|ALT){1}.*/.test(key.dataset.cmd)) {
-                            let cmd = key.dataset.cmd.substr(11);
-                            if (cmd.startsWith("CTRL")) {
-                                this.container.dataset.isCtrlOn = "false";
-                            }
-                            if (cmd.startsWith("SHIFT")) {
-                                this.container.dataset.isShiftOn = "false";
-                            }
-                            if (cmd.startsWith("ALT")) {
-                                this.container.dataset.isAltOn = "false";
-                            }
-                        } else {
-                            clearTimeout(key.holdTimeout);
-                            clearInterval(key.holdInterval);
-                        }
-
-                        key.setAttribute("class", "keyboard_key blink");
-                        setTimeout(() => {
-                            key.setAttribute("class", "keyboard_key");
-                        }, 100);
-                    };
-                }
-
-                // See #229
-                key.onmouseleave = () => {
-                    clearTimeout(key.holdTimeout);
-                    clearInterval(key.holdInterval);
-                };
-            });
-        });
-
-        // Tactile multi-touch support (#100)
-        this.container.addEventListener("touchstart", e => {
-            e.preventDefault();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                let key = e.changedTouches[i].target.parentElement;
-                if (key.tagName === 'svg') key = key.parentElement;
-                if (key.getAttribute("class").startsWith("keyboard_key")) {
-                    key.setAttribute("class", key.getAttribute("class")+" active");
-                    key.onmousedown({preventDefault: () => {return true}});
-                } else {
-                    key = e.changedTouches[i].target;
-                    if (key.getAttribute("class").startsWith("keyboard_key")) {
-                        key.setAttribute("class", key.getAttribute("class")+" active");
-                        key.onmousedown({preventDefault: () => {return true}});
-                    }
-                }
-            }
-        });
-        let dropKeyTouchHandler = e => {
-            e.preventDefault();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                let key = e.changedTouches[i].target.parentElement;
-                if (key.tagName === 'svg') key = key.parentElement;
-                if (key.getAttribute("class").startsWith("keyboard_key")) {
-                    key.setAttribute("class", key.getAttribute("class").replace("active", ""));
-                    key.onmouseup({preventDefault: () => {return true}});
-                } else {
-                    key = e.changedTouches[i].target;
-                    if (key.getAttribute("class").startsWith("keyboard_key")) {
-                        key.setAttribute("class", key.getAttribute("class").replace("active", ""));
-                        key.onmouseup({preventDefault: () => {return true}});
-                    }
-                }
-            }
-        };
-        this.container.addEventListener("touchend", dropKeyTouchHandler);
-        this.container.addEventListener("touchcancel", dropKeyTouchHandler);
-
-        // Bind actual keyboard actions to on-screen animations (for use without a touchscreen)
-        let findKey = e => {
-            // Fix incorrect querySelector error
-            let physkey;
-            (e.key === "\"") ? physkey = `\\"` : physkey = e.key;
-
-            // Find basic keys (typically letters, upper and lower-case)
-            let key = document.querySelector('div.keyboard_key[data-cmd="'+physkey+'"]');
-            if (key === null) key = document.querySelector('div.keyboard_key[data-shift_cmd="'+physkey+'"]');
-
-            // Find special keys (shift, control, arrows, etc.)
-            if (key === null && e.code === "ShiftLeft") key = document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- SHIFT: LEFT"]');
-            if (key === null && e.code === "ShiftRight") key = document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- SHIFT: RIGHT"]');
-            if (key === null && e.code === "ControlLeft") key = document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- CTRL: LEFT"]');
-            if (key === null && e.code === "ControlRight") key = document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- CTRL: RIGHT"]');
-            if (key === null && e.code === "AltLeft") key = document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- FN: ON"]');
-            if (key === null && e.code === "AltRight") key = document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- ALT: RIGHT"]');
-            if (key === null && e.code === "CapsLock") key = document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- CAPSLCK: ON"]');
-            if (key === null && e.code === "Escape") key = document.querySelector('div.keyboard_key[data-cmd=""]');
-            if (key === null && e.code === "Backspace") key = document.querySelector('div.keyboard_key[data-cmd=""]');
-            if (key === null && e.code === "ArrowUp") key = document.querySelector('div.keyboard_key[data-cmd="OA"]');
-            if (key === null && e.code === "ArrowLeft") key = document.querySelector('div.keyboard_key[data-cmd="OD"]');
-            if (key === null && e.code === "ArrowDown") key = document.querySelector('div.keyboard_key[data-cmd="OB"]');
-            if (key === null && e.code === "ArrowRight") key = document.querySelector('div.keyboard_key[data-cmd="OC"]');
-            if (key === null && e.code === "Enter") key = document.querySelectorAll('div.keyboard_key.keyboard_enter');
-
-            // Find "rare" keys (ctrl and alt symbols)
-            if (key === null) key = document.querySelector('div.keyboard_key[data-ctrl_cmd="'+e.key+'"]');
-            if (key === null) key = document.querySelector('div.keyboard_key[data-alt_cmd="'+e.key+'"]');
-
-            return key;
-        };
-
-        this.keydownHandler = e => {
-            // See #330
-            if (e.getModifierState("AltGraph") && e.code === "AltRight") {
-                document.querySelector('div.keyboard_key[data-cmd="ESCAPED|-- CTRL: LEFT"]').setAttribute("class", "keyboard_key");
-            }
-
-            // See #440
-            if (e.code === "ControlLeft" || e.code === "ControlRight") this.container.dataset.isCtrlOn = true;
-            if (e.code === "ShiftLeft" || e.code === "ShiftRight") this.container.dataset.isShiftOn = true;
-            if (e.code === "AltLeft" || e.code === "AltRight") this.container.dataset.isAltOn = true;
-            if (e.code === "CapsLock" && this.container.dataset.isCapsLckOn !== "true") this.container.dataset.isCapsLckOn = true;
-            if (e.code === "CapsLock" && this.container.dataset.isCapsLckOn === "true") this.container.dataset.isCapsLckOn = false;
-
-            let key = findKey(e);
-            if (key === null) return;
-            if (key.length) {
-                key.forEach(enterElement => {
-                    enterElement.setAttribute("class", "keyboard_key active keyboard_enter");
-                });
-            } else {
-                key.setAttribute("class", "keyboard_key active");
-            }
-
-            // See #516
-            if (e.repeat === false || (e.repeat === true && !e.code.startsWith('Shift') && !e.code.startsWith('Alt') && !e.code.startsWith('Control') && !e.code.startsWith('Caps'))) {
-                if(this.container.dataset.passwordMode == "false")
-                    window.audioManager.stdin.play();
-            }
-        };
-
-        document.onkeydown = this.keydownHandler;
-
-        document.onkeyup = e => {
-            // See #330
-            if (e.key === "Control" && e.getModifierState("AltGraph")) return;
-
-            // See #440
-            if (e.code === "ControlLeft" || e.code === "ControlRight") this.container.dataset.isCtrlOn = false;
-            if (e.code === "ShiftLeft" || e.code === "ShiftRight") this.container.dataset.isShiftOn = false;
-            if (e.code === "AltLeft" || e.code === "AltRight") this.container.dataset.isAltOn = false;
-
-            let key = findKey(e);
-            if (key === null) return;
-            if (key.length) {
-                key.forEach(enterElement => {
-                    enterElement.setAttribute("class", "keyboard_key blink keyboard_enter");
-                });
-                setTimeout(() => {
-                    key.forEach(enterElement => {
-                        enterElement.setAttribute("class", "keyboard_key keyboard_enter");
-                    });
-                }, 100);
-            } else {
-                key.setAttribute("class", "keyboard_key blink");
-                setTimeout(() => {
-                    key.setAttribute("class", "keyboard_key");
-                }, 100);
-            }
-
-            if(this.container.dataset.passwordMode == "false" && e.key === "Enter")
-                window.audioManager.granted.play();
-        };
-
+    static listen() {
+        if (Keyboard.listening === true) return;
+        Keyboard.listening = true;
+        document.addEventListener("keydown", e => {
+            if (window.keyboard instanceof Keyboard) window.keyboard.keyDown(e);
+        }, true);
+        document.addEventListener("keyup", e => {
+            if (window.keyboard instanceof Keyboard) window.keyboard.keyUp(e);
+        }, true);
         window.addEventListener("blur", () => {
-            document.querySelectorAll("div.keyboard_key.active").forEach(key => {
-                key.setAttribute("class", key.getAttribute("class").replace("active", ""));
-                key.onmouseup({preventDefault: () => {return true}});
-            });
+            if (window.keyboard instanceof Keyboard) window.keyboard.release();
         });
     }
-    pressKey(key) {
-        let cmd = key.dataset.cmd || "";
 
-        // Keyboard shortcuts
-        let shortcutsCat = "";
-        if (this.container.dataset.isCtrlOn === "true") shortcutsCat += "Ctrl";
-        if (this.container.dataset.isAltOn === "true") shortcutsCat += "Alt";
-        if (this.container.dataset.isShiftOn === "true") shortcutsCat += "Shift";
+    static codes() {
+        let letters = text => text.split("").map(letter => "Key" + letter);
+        return {
+            numbers: ["Backquote", "Digit1", "Digit2", "Digit3", "Digit4", "Digit5", "Digit6", "Digit7", "Digit8", "Digit9", "Digit0", "Minus", "Equal"],
+            top: letters("QWERTYUIOP").concat(["BracketLeft", "BracketRight"]),
+            home: letters("ASDFGHJKL").concat(["Semicolon", "Quote"]),
+            bottom: letters("ZXCVBNM").concat(["Comma", "Period", "Slash"])
+        };
+    }
 
-        let shortcutsTriggered = false;
+    static keyCode(code) {
+        let table = {Backquote: 192, Minus: 189, Equal: 187, Backspace: 8, Tab: 9, BracketLeft: 219, BracketRight: 221, Backslash: 220, CapsLock: 20, Semicolon: 186, Quote: 222, Enter: 13, ShiftLeft: 16, ShiftRight: 16, IntlBackslash: 226, Comma: 188, Period: 190, Slash: 191, IntlRo: 193, ControlLeft: 17, MetaLeft: 91, AltLeft: 18, AltRight: 18, Space: 32, ArrowLeft: 37, ArrowUp: 38, ArrowRight: 39, ArrowDown: 40};
+        if (Object.prototype.hasOwnProperty.call(table, code)) return table[code];
+        let match = /^(Key|Digit)(.)$/.exec(code);
+        return match ? match[2].charCodeAt(0) : 0;
+    }
 
-        if (shortcutsCat.length > 1) {
-            this._shortcuts[shortcutsCat].forEach(cut => {
-                if (!cut.enabled) return;
-        
-                let trig = cut.trigger.toLowerCase()
-                                    .replace("plus", "+")
-                                    .replace("space", " ")
-                                    .replace("tab", "\t")
-                                    .replace(/backspace|delete/, "\b")
-                                    .replace(/esc|escape/, this.ctrlseq[1])
-                                    .replace(/return|enter/, "\r");
+    static physicalCode(code) {
+        let table = {ControlRight: "ControlLeft", MetaRight: "MetaLeft", NumpadEnter: "Enter"};
+        return Object.prototype.hasOwnProperty.call(table, code) ? table[code] : code;
+    }
 
-                if (cmd !== trig) return;
+    static heatId(code) {
+        let table = {ShiftLeft: "Shift", ShiftRight: "Shift", AltLeft: "Alt", AltRight: "Alt", ControlLeft: "Control", ControlRight: "Control", MetaLeft: "Meta", MetaRight: "Meta", NumpadEnter: "Enter"};
+        return Object.prototype.hasOwnProperty.call(table, code) ? table[code] : code;
+    }
 
-                if (cut.type === "app") {
-                    window.useAppShortcut(cut.action);
-                    shortcutsTriggered = true;
-                } else if (cut.type === "shell") {
-                    let fn = (cut.linebreak) ? writelr : write;
-                    window.term[window.currentTerm][fn](cut.action);
-                } else {
-                    console.warn(`${cut.trigger} has unknown type`);
-                }
-            });
-        }
+    static charKey(raw, code, grow) {
+        let fix = value => (typeof value === "string") ? value.split("~~~CTRLSEQ1~~~").join("\x1b") : null;
+        let base = fix(raw.cmd);
+        let label = raw.name;
+        if (base.length === 2 && base.charAt(0) === "\\") base = base.charAt(1);
+        if (label.length === 2 && label.charAt(0) === "\\") label = label.charAt(1);
+        let shifted = fix(raw.shift_cmd);
+        let top = (typeof raw.shift_name === "string" && raw.shift_name.toLowerCase() !== label.toLowerCase()) ? raw.shift_name : "";
+        return {
+            code,
+            label,
+            top,
+            grow: grow || 1,
+            aria: label,
+            name: label,
+            keyCode: Keyboard.keyCode(code),
+            base,
+            shifted,
+            alt: fix(raw.alt_cmd),
+            altshift: fix(raw.altshift_cmd),
+            capslock: fix(raw.capslck_cmd),
+            letter: base.length === 1 && base.toLowerCase() !== base.toUpperCase() && shifted === base.toUpperCase(),
+            mod: null,
+            action: null,
+            look: "char",
+            short: ""
+        };
+    }
 
-        if (shortcutsTriggered) return;
+    static special(code, label, grow, aria, name, extra) {
+        return Object.assign({
+            code,
+            label,
+            top: "",
+            grow,
+            aria,
+            name,
+            keyCode: Keyboard.keyCode(code),
+            base: null,
+            shifted: null,
+            alt: null,
+            altshift: null,
+            capslock: null,
+            letter: false,
+            mod: null,
+            action: code,
+            look: "mod",
+            short: ""
+        }, extra || {});
+    }
 
-        // Modifiers
-        if (this.container.dataset.isShiftOn === "true" && key.dataset.shift_cmd || this.container.dataset.isCapsLckOn === "true" && key.dataset.shift_cmd) cmd = key.dataset.shift_cmd;
-        if (this.container.dataset.isCapsLckOn === "true" && key.dataset.capslck_cmd) cmd = key.dataset.capslck_cmd;
-        if (this.container.dataset.isCtrlOn === "true" && key.dataset.ctrl_cmd) cmd = key.dataset.ctrl_cmd;
-        if (this.container.dataset.isAltOn === "true" && key.dataset.alt_cmd) cmd = key.dataset.alt_cmd;
-        if (this.container.dataset.isAltOn === "true" && this.container.dataset.isShiftOn === "true" && key.dataset.altshift_cmd) cmd = key.dataset.altshift_cmd;
-        if (this.container.dataset.isFnOn === "true" && key.dataset.fn_cmd) cmd = key.dataset.fn_cmd;
-        if (this.container.dataset.isNextCircum === "true") {
-            cmd = this.addCircum(cmd);
-            this.container.dataset.isNextCircum = "false";
-        }
-        if (this.container.dataset.isNextTrema === "true") {
-            cmd = this.addTrema(cmd);
-            this.container.dataset.isNextTrema = "false";
-        }
-        if (this.container.dataset.isNextAcute === "true") {
-            cmd = this.addAcute(cmd);
-            this.container.dataset.isNextAcute = "false";
-        }
-        if (this.container.dataset.isNextGrave === "true") {
-            cmd = this.addGrave(cmd);
-            this.container.dataset.isNextGrave = "false";
-        }
-        if (this.container.dataset.isNextCaron === "true") {
-            cmd = this.addCaron(cmd);
-            this.container.dataset.isNextCaron = "false";
-        }
-        if (this.container.dataset.isNextBar === "true") {
-            cmd = this.addBar(cmd);
-            this.container.dataset.isNextBar = "false";
-        }
-        if (this.container.dataset.isNextBreve === "true") {
-            cmd = this.addBreve(cmd);
-            this.container.dataset.isNextBreve = "false";
-        }
-        if (this.container.dataset.isNextTilde === "true") {
-            cmd = this.addTilde(cmd);
-            this.container.dataset.isNextTilde = "false";
-        }
-        if (this.container.dataset.isNextMacron === "true") {
-            cmd = this.addMacron(cmd);
-            this.container.dataset.isNextMacron = "false";
-        }
-        if (this.container.dataset.isNextCedilla === "true") {
-            cmd = this.addCedilla(cmd);
-            this.container.dataset.isNextCedilla = "true";
-        }
-        if (this.container.dataset.isNextOverring === "true") {
-            cmd = this.addOverring(cmd);
-            this.container.dataset.isNextOverring = "false";
-        }
-        if (this.container.dataset.isNextGreek === "true") {
-            cmd = this.toGreek(cmd);
-            this.container.dataset.isNextGreek = "false";
-        }
-        if (this.container.dataset.isNextIotasub === "true") {
-            cmd = this.addIotasub(cmd);
-            this.container.dataset.isNextIotasub = "false";
-        }
-
-        // Escaped commands
-        if (cmd.startsWith("ESCAPED|-- ")) {
-            cmd = cmd.substr(11);
-            switch(cmd) {
-                case "CAPSLCK: ON":
-                    this.container.dataset.isCapsLckOn = "true";
-                    return true;
-                case "CAPSLCK: OFF":
-                    this.container.dataset.isCapsLckOn = "false";
-                    return true;
-                case "FN: ON":
-                    this.container.dataset.isFnOn = "true";
-                    return true;
-                case "FN: OFF":
-                    this.container.dataset.isFnOn = "false";
-                    return true;
-                case "CIRCUM":
-                    this.container.dataset.isNextCircum = "true";
-                    return true;
-                case "TREMA":
-                    this.container.dataset.isNextTrema = "true";
-                    return true;
-                case "ACUTE":
-                    this.container.dataset.isNextAcute = "true";
-                    return true;
-                case "GRAVE":
-                    this.container.dataset.isNextGrave = "true";
-                    return true;
-                case "CARON":
-                    this.container.dataset.isNextCaron = "true";
-                    return true;
-                case "BAR":
-                    this.container.dataset.isNextBar = "true";
-                    return true;
-                case "BREVE":
-                    this.container.dataset.isNextBreve = "true";
-                    return true;
-                case "TILDE":
-                    this.container.dataset.isNextTilde = "true";
-                    return true;
-                case "MACRON":
-                    this.container.dataset.isNextMacron = "true";
-                    return true;
-                case "CEDILLA":
-                    this.container.dataset.isNextCedilla = "true";
-                    return true;
-                case "OVERRING":
-                    this.container.dataset.isNextOverring = "true";
-                    return true;
-                case "GREEK":
-                    this.container.dataset.isNextGreek = "true";
-                    return true;
-                case "IOTASUB":
-                    this.container.dataset.isNextIotasub = "true";
-                    return true;
+    static arrange(layout, name) {
+        ["row_numbers", "row_1", "row_2", "row_3", "row_space"].forEach(row => {
+            if (!Array.isArray(layout[row]) || !layout[row].every(key => key !== null && typeof key === "object" && typeof key.name === "string" && typeof key.cmd === "string")) {
+                throw new Error("The keyboard layout has no usable " + row);
             }
-        }
-
-
-        if (cmd === "\n") {
-            if (window.keyboard.linkedToTerm) {
-                window.term[window.currentTerm].writelr("");
-            } else {
-                document.activeElement.dispatchEvent(new CustomEvent("change", {detail: "enter" }));
-            }
-            return true;
-        }
-
-
-        if (window.keyboard.linkedToTerm) {
-            window.term[window.currentTerm].write(cmd);
+        });
+        let numbers = layout.row_numbers;
+        let top = layout.row_1;
+        let home = layout.row_2;
+        let bottom = layout.row_3;
+        if (numbers.length !== 15 || top.length !== 14 || home.length !== 14) throw new Error("The keyboard layout's rows have an unknown size");
+        let rightShift = bottom.findIndex((key, i) => i > 0 && key.cmd === "ESCAPED|-- SHIFT: RIGHT");
+        let middle = (rightShift > 0) ? bottom.slice(1, rightShift) : [];
+        let codes = Keyboard.codes();
+        let bottomCodes;
+        if (middle.length === 11) {
+            bottomCodes = ["IntlBackslash"].concat(codes.bottom);
+        } else if (middle.length === 12) {
+            bottomCodes = ["IntlBackslash"].concat(codes.bottom, ["IntlRo"]);
         } else {
-            let isDelete = false;
-            if (typeof document.activeElement.value !== "undefined") {
-                switch(cmd) {
-                    case "":
-                        document.activeElement.value = document.activeElement.value.slice(0, -1);
-                        isDelete = true;
-                        break;
-                    case "OD":
-                        document.activeElement.selectionStart--;
-                        document.activeElement.selectionEnd = document.activeElement.selectionStart;
-                        break;
-                    case "OC":
-                        document.activeElement.selectionEnd++;
-                        document.activeElement.selectionStart = document.activeElement.selectionEnd;
-                        break;
-                    default:
-                        if (this.ctrlseq.indexOf(cmd.slice(0, 1)) !== -1) {
-                            // Prevent trying to write other control sequences
-                        } else {
-                            document.activeElement.value = document.activeElement.value+cmd;
-                        }
+            throw new Error("The keyboard layout's bottom row has an unknown size");
+        }
+        let ansi = /^en-/.test(name) && name !== "en-GB" && middle.length === 11;
+        if (ansi) {
+            middle = middle.slice(1);
+            bottomCodes = bottomCodes.slice(1);
+        }
+
+        let first = numbers.slice(1, 14).map((key, i) => Keyboard.charKey(key, codes.numbers[i]));
+        first.push(Keyboard.special("Backspace", "BACKSPACE", 2, "Backspace", "Backspace", {short: "BACK"}));
+
+        let second = [Keyboard.special("Tab", "TAB", 1.5, "Tab", "Tab")];
+        top.slice(1, 13).forEach((key, i) => second.push(Keyboard.charKey(key, codes.top[i])));
+        let slash = Keyboard.charKey(home[12], "Backslash", 1.5);
+        if (slash.label === "\\") slash.aria = "Backslash";
+        second.push(slash);
+
+        let third;
+        if (home[0].cmd.startsWith("ESCAPED|-- CAPSLCK")) {
+            third = [Keyboard.special("CapsLock", "CAPS", 1.75, "Caps lock", "Caps", {mod: "caps", action: null})];
+        } else if (home[0].cmd === "\b") {
+            third = [Keyboard.special("CapsLock", "BACK", 1.75, "Backspace", "Backspace", {action: "Backspace", keyCode: 8})];
+        } else {
+            third = [Keyboard.charKey(home[0], "CapsLock", 1.75)];
+        }
+        home.slice(1, 12).forEach((key, i) => third.push(Keyboard.charKey(key, codes.home[i])));
+        third.push(Keyboard.special("Enter", "ENTER", 2.25, "Enter", "Enter"));
+
+        let leftGrow = ansi ? 2.25 : 1.25;
+        let fourth = [Keyboard.special("ShiftLeft", "SHIFT", leftGrow, "Shift", "Shift", {mod: "shift", action: null})];
+        middle.forEach((key, i) => fourth.push(Keyboard.charKey(key, bottomCodes[i])));
+        fourth.push(Keyboard.special("ShiftRight", "SHIFT", 15 - leftGrow - middle.length, "Shift", "Shift", {mod: "shift", action: null}));
+
+        let arrow = (code, label, aria, name) => Keyboard.special(code, label, 1, aria, name, {look: "char"});
+        let fifth = [
+            Keyboard.special("ControlLeft", "CTRL", 1.25, "Control", "Ctrl", {mod: "ctrl", action: null}),
+            Keyboard.special("MetaLeft", "WIN", 1.25, "Windows", "Win", {mod: "win", action: null}),
+            Keyboard.special("AltLeft", "ALT", 1.25, "Alt", "Alt", {mod: "alt", action: null}),
+            Keyboard.special("Space", "", 6, "Space", "Space"),
+            Keyboard.special("AltRight", ansi ? "ALT" : "ALT GR", 1.25, ansi ? "Alt" : "Alt Gr", ansi ? "Alt" : "AltGr", {mod: "alt", action: null, short: ansi ? "" : "ALTGR"}),
+            arrow("ArrowLeft", "←", "Left arrow", "Left"),
+            arrow("ArrowUp", "↑", "Up arrow", "Up"),
+            arrow("ArrowDown", "↓", "Down arrow", "Down"),
+            arrow("ArrowRight", "→", "Right arrow", "Right")
+        ];
+        return [first, second, third, fourth, fifth];
+    }
+
+    static family(name, rows) {
+        let known = {"en-COLEMAK": "COLEMAK", "en-DVORAK": "DVORAK", "en-NORMAN": "NORMAN", "en-WORKMAN": "WORKMAN", "fr-BEPO": "BÉPO"};
+        if (Object.prototype.hasOwnProperty.call(known, name)) return known[name];
+        let letters = rows[1].filter(key => key.look === "char" && key.mod === null).slice(0, 6).map(key => key.label).join("");
+        return /^\p{Lu}{6}$/u.test(letters) ? letters : "";
+    }
+
+    static shortcutTable() {
+        let table = {};
+        let order = ["Ctrl", "Alt", "Shift"];
+        (Array.isArray(window.shortcuts) ? window.shortcuts : []).forEach(scut => {
+            if (!scut || typeof scut.trigger !== "string") return;
+            let cut = Object.assign({}, scut);
+            let parts = cut.trigger.split("+");
+            let last = parts.pop();
+            parts.sort((a, b) => order.indexOf(a) - order.indexOf(b));
+            let group = parts.join("");
+            if (!table[group]) table[group] = [];
+            if (cut.type === "app" && cut.action === "TAB_X" && last === "X") {
+                for (let i = 1; i <= 5; i++) {
+                    table[group].push(Object.assign({}, cut, {trigger: String(i), action: "TAB_" + i}));
                 }
+            } else {
+                cut.trigger = last;
+                table[group].push(cut);
             }
-            // Emulate oninput events
-            document.activeElement.dispatchEvent(new CustomEvent("input", {detail: ((isDelete)? "delete" : "insert") }));
-            document.activeElement.focus();
+        });
+        return table;
+    }
+
+    static control(text) {
+        if (text.length !== 1) return text;
+        let code = text.charCodeAt(0);
+        if ((code >= 65 && code <= 90) || (code >= 97 && code <= 122)) return String.fromCharCode(code & 31);
+        let table = {" ": "\x00", "@": "\x00", "2": "\x00", "3": "\x1b", "[": "\x1b", "4": "\x1c", "\\": "\x1c", "5": "\x1d", "]": "\x1d", "6": "\x1e", "^": "\x1e", "7": "\x1f", "_": "\x1f", "-": "\x1f", "8": "\x7f", "?": "\x7f"};
+        return Object.prototype.hasOwnProperty.call(table, text) ? table[text] : text;
+    }
+
+    static plainText(data) {
+        return data.replace(/\x1b\][^\x07\x1b]*(\x07|\x1b\\)?/g, "").replace(/\x1b\[[0-?]*[ -\/]*[@-~]/g, "").replace(/\x1b[^\[\]]/g, "");
+    }
+
+    static isTyped(text) {
+        return typeof text === "string" && text.length === 1 && text !== " " && !/[\x00-\x1f\x7f]/.test(text);
+    }
+
+    static eventName(e) {
+        let key = e.key;
+        if (typeof key !== "string" || key === "" || key === "Unidentified") return (typeof e.code === "string" && e.code !== "") ? e.code : "Key";
+        if (key === " ") return "Space";
+        if (key.length === 1) return key.toUpperCase();
+        let names = {Control: "Ctrl", Meta: "Win", OS: "Win", CapsLock: "Caps", ArrowLeft: "Left", ArrowUp: "Up", ArrowRight: "Right", ArrowDown: "Down", Escape: "Esc", AltGraph: "AltGr"};
+        return Object.prototype.hasOwnProperty.call(names, key) ? names[key] : key;
+    }
+
+    build() {
+        this.container.textContent = "";
+        this.container.dataset.layout = this.name;
+        this.rows.forEach(row => {
+            let line = document.createElement("div");
+            line.className = "vx-kb-row";
+            row.forEach(key => {
+                let button = document.createElement("button");
+                button.type = "button";
+                button.tabIndex = -1;
+                button.className = "vx-key " + ((key.look === "mod") ? "vx-key-mod" : "vx-key-char");
+                button.dataset.code = key.code;
+                button.dataset.heat = Keyboard.heatId(key.code);
+                button.style.setProperty("--vx-grow", String(key.grow));
+                button.setAttribute("aria-label", key.aria);
+                if (key.top !== "") {
+                    let small = document.createElement("span");
+                    small.className = "vx-key-top";
+                    small.setAttribute("aria-hidden", "true");
+                    small.textContent = key.top;
+                    button.appendChild(small);
+                }
+                let label = document.createElement("span");
+                label.className = "vx-key-label";
+                label.textContent = key.label;
+                button.appendChild(label);
+                if (key.short !== "") {
+                    let short = document.createElement("span");
+                    short.className = "vx-key-short-label";
+                    short.textContent = key.short;
+                    button.appendChild(short);
+                }
+                line.appendChild(button);
+                this.elements.set(key.code, button);
+                this.specs.set(key.code, key);
+            });
+            this.container.appendChild(line);
+        });
+
+        this.container.onpointerdown = e => {
+            let button = e.target.closest(".vx-key");
+            if (!button || !this.container.contains(button)) return;
+            e.preventDefault();
+            if (e.button !== 0) return;
+            try {
+                button.setPointerCapture(e.pointerId);
+            } catch(err) {
+            }
+            this.pointerDown(button, e.pointerId);
+        };
+        let up = e => this.pointerUp(e.pointerId);
+        this.container.onpointerup = up;
+        this.container.onpointercancel = up;
+        this.container.onlostpointercapture = up;
+
+        if (Keyboard.observer) Keyboard.observer.disconnect();
+        Keyboard.observer = new ResizeObserver(() => this.fit());
+        Keyboard.observer.observe(this.container);
+    }
+
+    fit() {
+        this.elements.forEach((button, code) => {
+            button.classList.remove("vx-key-tight", "vx-key-short");
+            if (button.scrollWidth > button.clientWidth) button.classList.add("vx-key-tight");
+            if (this.specs.get(code).short !== "" && button.scrollWidth > button.clientWidth) button.classList.add("vx-key-short");
+        });
+        let head = this.container.parentElement ? this.container.parentElement.querySelector(".vx-kb-head") : null;
+        if (!head) return;
+        head.classList.remove("vx-kb-fit-1", "vx-kb-fit-2", "vx-kb-fit-3");
+        for (let level = 1; level <= 3 && head.scrollWidth > head.clientWidth; level++) {
+            head.classList.add("vx-kb-fit-" + level);
         }
     }
+
+    passwordMode() {
+        return this.container.dataset.passwordMode === "true";
+    }
+
+    pointerDown(button, pointerId) {
+        this.pointerUp(pointerId);
+        let key = this.specs.get(button.dataset.code);
+        if (!key) return;
+        let state = {button, wait: null, again: null};
+        this.pointers.set(pointerId, state);
+        if (!this.passwordMode()) button.classList.add("vx-down");
+        this.press(key);
+        if (key.mod === null) {
+            state.wait = setTimeout(() => {
+                state.again = setInterval(() => this.press(key, true), 70);
+            }, 400);
+        }
+    }
+
+    pointerUp(pointerId) {
+        let state = this.pointers.get(pointerId);
+        if (!state) return;
+        this.pointers.delete(pointerId);
+        clearTimeout(state.wait);
+        clearInterval(state.again);
+        state.button.classList.remove("vx-down");
+    }
+
+    release() {
+        this.pointers.forEach((state, pointerId) => this.pointerUp(pointerId));
+        this.held = {ctrl: false, alt: false, shift: false, caps: this.held.caps};
+        this.elements.forEach(button => button.classList.remove("vx-down"));
+        this.renderMods();
+    }
+
+    syncHeld(e) {
+        this.held.ctrl = e.ctrlKey === true;
+        this.held.alt = e.altKey === true;
+        this.held.shift = e.shiftKey === true;
+        if (typeof e.getModifierState === "function") this.held.caps = e.getModifierState("CapsLock") === true;
+    }
+
+    keyDown(e) {
+        this.syncHeld(e);
+        this.renderMods();
+        if (this.passwordMode()) return;
+        let code = Keyboard.physicalCode(e.code);
+        let button = this.elements.get(code);
+        if (button) button.classList.add("vx-down");
+        let modifier = /^(Shift|Alt|Control|Meta|Caps)/.test(e.code);
+        if (!e.repeat) {
+            this.mark(button ? code : null, Keyboard.eventName(e), e.keyCode);
+            if (button) {
+                let altGraph = typeof e.getModifierState === "function" && e.getModifierState("AltGraph");
+                let typed = (Keyboard.isTyped(e.key) && !e.metaKey && ((!e.ctrlKey && !e.altKey) || altGraph)) ? e.key : null;
+                this.count(code, typed);
+            }
+        }
+        if (!e.repeat || !modifier) window.audioManager.stdin.play();
+    }
+
+    keyUp(e) {
+        this.syncHeld(e);
+        this.renderMods();
+        let button = this.elements.get(Keyboard.physicalCode(e.code));
+        if (button) button.classList.remove("vx-down");
+        if (!this.passwordMode() && e.key === "Enter") window.audioManager.granted.play();
+    }
+
+    mark(code, name, keyCode) {
+        this.lastCode = code;
+        this.lastText = name + " · " + ((Number.isFinite(keyCode) && keyCode > 0) ? keyCode : "?");
+        this.renderLast();
+        this.renderHeat();
+    }
+
+    count(code, typed) {
+        let id = Keyboard.heatId(code);
+        if (typed !== null) {
+            this.waiting.push({id, typed, at: performance.now()});
+            if (this.waiting.length > 64) this.waiting.shift();
+            return;
+        }
+        this.bump(id);
+        this.renderHeat();
+    }
+
+    bump(id) {
+        let count = (this.counts.get(id) || 0) + 1;
+        this.counts.set(id, count);
+        if (count > this.maxCount) this.maxCount = count;
+    }
+
+    noteInput(data) {
+        if (typeof data !== "string" || data.length === 0 || data.length > 8) return;
+        let now = performance.now();
+        if (this.echoStart === null || now - this.echoStart > 1000) this.echoStart = now;
+    }
+
+    noteOutput(data) {
+        let now = performance.now();
+        if (this.echoStart !== null) {
+            let took = now - this.echoStart;
+            this.echoStart = null;
+            if (took <= 1000) {
+                this.echoSamples.push(took);
+                if (this.echoSamples.length > 32) this.echoSamples.shift();
+                this.renderEcho();
+            }
+        }
+        if (this.waiting.length === 0) return;
+        this.waiting = this.waiting.filter(entry => now - entry.at <= 1000);
+        if (this.waiting.length === 0 || typeof data !== "string" || data.length > 4096) return;
+        let text = Keyboard.plainText(data);
+        let left = [];
+        let changed = false;
+        this.waiting.forEach(entry => {
+            if (text.includes(entry.typed)) {
+                this.bump(entry.id);
+                changed = true;
+            } else {
+                left.push(entry);
+            }
+        });
+        this.waiting = left;
+        if (changed) this.renderHeat();
+    }
+
+    stats() {
+        return {counts: Array.from(this.counts.entries()), lastCode: this.lastCode, lastText: this.lastText, echoSamples: this.echoSamples.slice()};
+    }
+
+    renderHead() {
+        let layout = document.getElementById("vx-kb-layout");
+        if (layout) layout.textContent = (this.family !== "") ? this.name + " · " + this.family : this.name;
+        this.renderMods();
+        this.renderLast();
+        this.renderEcho();
+    }
+
+    renderMods() {
+        ["ctrl", "alt", "shift", "caps"].forEach(mod => {
+            let on = this.held[mod] || this.latched[mod];
+            document.querySelectorAll(".vx-ind[data-mod=\"" + mod + "\"]").forEach(ind => ind.classList.toggle("vx-on", on));
+        });
+        this.specs.forEach((key, code) => {
+            if (key.mod === null || key.mod === "win") return;
+            let on = (key.mod === "caps") ? (this.latched.caps || this.held.caps) : this.latched[key.mod];
+            this.elements.get(code).classList.toggle("vx-on", on);
+        });
+    }
+
+    renderLast() {
+        let last = document.getElementById("vx-kb-last");
+        if (last) last.textContent = this.lastText;
+    }
+
+    renderEcho() {
+        let echo = document.getElementById("vx-kb-echo");
+        if (!echo) return;
+        if (this.echoSamples.length === 0) {
+            echo.textContent = "—";
+            return;
+        }
+        let sorted = this.echoSamples.slice().sort((a, b) => a - b);
+        let middle = Math.floor(sorted.length / 2);
+        let median = (sorted.length % 2 === 1) ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+        echo.textContent = median.toFixed(1) + " ms";
+    }
+
+    renderHeat() {
+        let max = this.maxCount;
+        this.elements.forEach((button, code) => {
+            let count = this.counts.get(button.dataset.heat) || 0;
+            let heat = (max > 0) ? count / max : 0;
+            button.classList.toggle("vx-hot", heat > 0);
+            button.classList.toggle("vx-hot-edge", heat > 0.45);
+            button.classList.toggle("vx-hot-text", heat > 0.3);
+            if (heat > 0) {
+                button.style.setProperty("--vx-heat", heat.toFixed(4));
+            } else {
+                button.style.removeProperty("--vx-heat");
+            }
+            button.classList.toggle("vx-last", code === this.lastCode);
+        });
+    }
+
+    focusTerm() {
+        if (!this.linkedToTerm || !window.term) return;
+        let term = window.term[window.currentTerm];
+        if (term && term.term) term.term.focus();
+    }
+
+    shortcut(key) {
+        let group = (this.latched.ctrl || this.held.ctrl ? "Ctrl" : "") + (this.latched.alt || this.held.alt ? "Alt" : "") + (this.latched.shift || this.held.shift ? "Shift" : "");
+        if (group === "" || !Array.isArray(this._shortcuts[group])) return false;
+        let names = {Space: "space", Tab: "tab", Enter: "enter", Backspace: "backspace", ArrowLeft: "left", ArrowUp: "up", ArrowDown: "down", ArrowRight: "right"};
+        let name = (key.action !== null) ? names[key.action] : ((typeof key.base === "string") ? key.base.toLowerCase() : "");
+        if (!name) return false;
+        let used = false;
+        this._shortcuts[group].forEach(cut => {
+            if (used || !cut.enabled) return;
+            let trigger = cut.trigger.toLowerCase().replace("plus", "+").replace("return", "enter");
+            if (trigger !== name) return;
+            if (cut.type === "app") {
+                window.useAppShortcut(cut.action);
+                used = true;
+            } else if (cut.type === "shell" && window.term && window.term[window.currentTerm]) {
+                window.term[window.currentTerm][cut.linebreak ? "writelr" : "write"](cut.action);
+                used = true;
+            }
+        });
+        return used;
+    }
+
+    output(key) {
+        let ctrl = this.latched.ctrl || this.held.ctrl;
+        let alt = this.latched.alt || this.held.alt;
+        let shift = this.latched.shift || this.held.shift;
+        if (key.action === "Backspace") return shift ? "\x1b[3~" : (ctrl ? "\b" : (alt ? "\x1b\x7f" : "\x7f"));
+        if (key.action === "Tab") return shift ? "\x1b[Z" : (alt ? "\x1b\t" : "\t");
+        if (key.action === "Enter") return alt ? "\x1b\r" : "\r";
+        if (key.action === "Space") return ctrl ? "\x00" : (alt ? "\x1b " : " ");
+        if (key.action !== null && key.action.startsWith("Arrow")) {
+            let letter = {ArrowUp: "A", ArrowDown: "B", ArrowRight: "C", ArrowLeft: "D"}[key.action];
+            let mods = 1 + (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0);
+            if (mods > 1) return "\x1b[1;" + mods + letter;
+            let term = (window.term && this.linkedToTerm) ? window.term[window.currentTerm] : null;
+            let app = Boolean(term && term.term && term.term.modes && term.term.modes.applicationCursorKeysMode);
+            return (app ? "\x1bO" : "\x1b[") + letter;
+        }
+        let caps = this.latched.caps || this.held.caps;
+        let text;
+        let meta = false;
+        if (alt && shift && key.altshift) {
+            text = key.altshift;
+        } else if (alt && key.alt) {
+            text = key.alt;
+        } else {
+            let upper = shift;
+            if (caps && key.letter) upper = !upper;
+            text = (upper && key.shifted) ? key.shifted : key.base;
+            if (caps && !shift && key.capslock) text = key.capslock;
+            meta = alt;
+        }
+        if (text.startsWith("ESCAPED|-- ")) {
+            this.dead = text.slice(11);
+            return null;
+        }
+        if (this.dead !== null) {
+            text = this.accent(this.dead, text);
+            this.dead = null;
+        }
+        if (ctrl) text = Keyboard.control(text);
+        if (meta && !text.startsWith("\x1b")) text = "\x1b" + text;
+        return text;
+    }
+
+    accent(dead, text) {
+        let table = {CIRCUM: "addCircum", TREMA: "addTrema", ACUTE: "addAcute", GRAVE: "addGrave", CARON: "addCaron", BAR: "addBar", BREVE: "addBreve", TILDE: "addTilde", MACRON: "addMacron", CEDILLA: "addCedilla", OVERRING: "addOverring", GREEK: "toGreek", IOTASUB: "addIotasub"};
+        return Object.prototype.hasOwnProperty.call(table, dead) ? this[table[dead]](text) : text;
+    }
+
+    press(key, repeat) {
+        let quiet = this.passwordMode() || repeat === true;
+        if (!quiet) this.mark(key.code, key.name, key.keyCode);
+        if (key.mod !== null) {
+            if (key.mod !== "win") this.latched[key.mod] = !this.latched[key.mod];
+            if (!quiet) {
+                this.count(key.code, null);
+                window.audioManager.stdin.play();
+            }
+            this.renderMods();
+            this.focusTerm();
+            return;
+        }
+        let text = null;
+        if (!this.shortcut(key)) {
+            text = this.output(key);
+            if (text !== null) this.send(text);
+        }
+        this.latched.ctrl = false;
+        this.latched.alt = false;
+        this.latched.shift = false;
+        this.renderMods();
+        if (!quiet) {
+            this.count(key.code, Keyboard.isTyped(text) ? text : null);
+            if (key.action === "Enter") {
+                window.audioManager.granted.play();
+            } else {
+                window.audioManager.stdin.play();
+            }
+        }
+        this.focusTerm();
+    }
+
+    send(text) {
+        if (this.linkedToTerm) {
+            let term = window.term ? window.term[window.currentTerm] : null;
+            if (term) term.write(text);
+            return;
+        }
+        let field = document.activeElement;
+        if (!field) return;
+        if (text === "\r") {
+            field.dispatchEvent(new CustomEvent("change", {detail: "enter"}));
+            return;
+        }
+        if (!(field instanceof HTMLInputElement || field instanceof HTMLTextAreaElement)) return;
+        let isDelete = false;
+        if (text === "\x7f" || text === "\b") {
+            field.value = field.value.slice(0, -1);
+            isDelete = true;
+        } else if (text === "\x1b[D" || text === "\x1bOD") {
+            let at = Math.max(0, (field.selectionStart || 0) - 1);
+            field.setSelectionRange(at, at);
+        } else if (text === "\x1b[C" || text === "\x1bOC") {
+            let at = Math.min(field.value.length, (field.selectionEnd || 0) + 1);
+            field.setSelectionRange(at, at);
+        } else if (/^[^\x00-\x1f\x7f]+$/.test(text)) {
+            field.value = field.value + text;
+        } else {
+            return;
+        }
+        field.dispatchEvent(new CustomEvent("input", {detail: isDelete ? "delete" : "insert"}));
+        field.focus();
+    }
+
     togglePasswordMode() {
         let d = this.container.dataset.passwordMode;
         (d === "true") ? d = "false" : d = "true";
         this.container.dataset.passwordMode = d;
         window.passwordMode = d;
+        if (d === "true") {
+            this.waiting = [];
+            this.elements.forEach(button => button.classList.remove("vx-down"));
+        }
         return d;
     }
     addCircum(char) {

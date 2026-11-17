@@ -243,6 +243,10 @@ const vindex = Object.freeze({
     onDirChange: callback => {
         return listen("fs-watch-event", callback);
     },
+    listFolder: dir => {
+        requireValid(typeof dir === "string", "Folder path must be a string");
+        return ipcRenderer.invoke("explorer-list", dir);
+    },
     netPlaces: addresses => {
         requireValid(Array.isArray(addresses) && addresses.length <= 64 && addresses.every(address => typeof address === "string"), "Addresses must be a list of at most 64 strings");
         return ipcRenderer.invoke("net-places", addresses.slice());

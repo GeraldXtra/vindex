@@ -26,6 +26,18 @@ class Terminal {
             this.cwd = "";
             this.oncwdchange = () => {};
             this.onsizechange = () => {};
+            this.hookKind = null;
+            this.atPrompt = false;
+            this._pendingInput = false;
+            this.onprompt = () => {};
+            this.onuserinput = () => {};
+            this.onoutput = () => {};
+            this._noteInput = data => {
+                if (Terminal.isTerminalReply(data)) return;
+                this.atPrompt = false;
+                this._pendingInput = !Terminal.isLineEnd(data);
+                this.onuserinput(data);
+            };
 
             this._sendSizeToServer = () => {
                 let cols = this.term.cols.toString();
@@ -90,10 +102,6 @@ class Terminal {
             this.term.onResize(({cols, rows}) => {
                 this.onsizechange(cols, rows);
             });
-            this.term.attachCustomKeyEventHandler(e => {
-                window.keyboard.keydownHandler(e);
-                return true;
-            });
             // Prevent soft-keyboard on touch devices #733
             document.querySelectorAll('.xterm-helper-textarea').forEach(textarea => textarea.setAttribute('readonly', 'readonly'))
             this.term.focus();
@@ -103,6 +111,7 @@ class Terminal {
                 switch(args[0]) {
                     case "Output":
                         this.term.write(args[1]);
+                        this.onoutput(args[1]);
 
                         let d = Date.now();
 
@@ -145,6 +154,20 @@ class Terminal {
                             this.onprocesschange(args[1]);
                         }
                         break;
+                    case "Shell hook":
+                        if (typeof args[1] !== "string") return;
+                        this.hookKind = args[1];
+                        if (this.cwd === "" && typeof args[2] === "string" && args[2] !== "") {
+                            this.cwd = args[2];
+                            this.oncwdchange(this.cwd);
+                        }
+                        break;
+                    case "Prompt":
+                        if (typeof args[1] !== "string" || typeof args[2] !== "string") return;
+                        this.hookKind = args[2];
+                        this.atPrompt = args[3] === true && !this._pendingInput;
+                        this.onprompt(args[1]);
+                        break;
                     default:
                         return;
                 }
@@ -156,6 +179,7 @@ class Terminal {
 
             this.term.onData(data => {
                 window.vindex.terminalWrite(this.port, data);
+                this._noteInput(data);
             });
             this.term.onBinary(data => {
                 let buffer = new Uint8Array(data.length);
@@ -163,6 +187,8 @@ class Terminal {
                     buffer[i] = data.charCodeAt(i) & 255;
                 }
                 window.vindex.terminalWriteBinary(this.port, buffer);
+                this.atPrompt = false;
+                this._pendingInput = true;
             });
 
             this.lastSoundFX = Date.now();
@@ -216,10 +242,12 @@ class Terminal {
 
             this.write = cmd => {
                 window.vindex.terminalWrite(this.port, cmd);
+                this._noteInput(cmd);
             };
 
             this.writelr = cmd => {
                 window.vindex.terminalWrite(this.port, cmd+"\r");
+                this._noteInput(cmd+"\r");
             };
 
             this.clipboard = {
@@ -252,6 +280,62 @@ class Terminal {
             this.onopened = () => {};
             this.onresize = () => {};
             this.ondisconnected = () => {};
+
+            this._promptToken = require("crypto").randomBytes(16).toString("hex");
+            this._promptHook = null;
+            try {
+                this._promptHook = Terminal.promptHook(opts.shell, opts.params, opts.env || process.env, this._promptToken);
+            } catch(err) {
+                signale.warn("Could not set up folder tracking for the shell:", err);
+                this._promptHook = null;
+            }
+            this._markHead = "\x1b]6973;" + this._promptToken + ";";
+            this._markTail = "";
+            this._promptPlace = null;
+            this._atPrompt = false;
+            this._pendingInput = false;
+            this._readMarks = data => {
+                let text = this._markTail + data;
+                let head = this._markHead;
+                let from = 0;
+                let waiting = -1;
+                let place = null;
+                for (;;) {
+                    let at = text.indexOf(head, from);
+                    if (at === -1) break;
+                    let start = at + head.length;
+                    let bell = text.indexOf("\x07", start);
+                    let st = text.indexOf("\x1b\\", start);
+                    let end = (bell === -1) ? st : ((st === -1) ? bell : Math.min(bell, st));
+                    if (end === -1) {
+                        waiting = at;
+                        break;
+                    }
+                    let found = text.slice(start, end);
+                    if (Terminal.isPromptPlace(found)) place = found;
+                    from = end + ((end === bell) ? 1 : 2);
+                }
+                if (waiting !== -1) {
+                    this._markTail = (text.length - waiting > 70000) ? "" : text.slice(waiting);
+                } else {
+                    this._markTail = text.slice(Math.max(from, text.length - head.length + 1));
+                }
+                return place;
+            };
+            this._takePrompt = place => {
+                this._promptPlace = place;
+                this._atPrompt = !this._pendingInput;
+                if (this.tty._cwd !== place) {
+                    this.tty._cwd = place;
+                    this._sendToRenderer("New cwd", place);
+                }
+                this._sendToRenderer("Prompt", place, this._promptHook.kind, this._atPrompt);
+            };
+            this._takeInput = data => {
+                if (typeof data === "string" && Terminal.isTerminalReply(data)) return;
+                this._atPrompt = false;
+                this._pendingInput = !(typeof data === "string" && Terminal.isLineEnd(data));
+            };
 
             this._disableCWDtracking = false;
             this._getTtyCWD = tty => {
@@ -303,7 +387,7 @@ class Terminal {
             this._nextTickUpdateTtyCWD = false;
             this._nextTickUpdateProcess = false;
             this._tick = setInterval(() => {
-                if (this._nextTickUpdateTtyCWD && this._disableCWDtracking === false) {
+                if (this._nextTickUpdateTtyCWD && this._disableCWDtracking === false && this._promptHook === null) {
                     this._nextTickUpdateTtyCWD = false;
                     this._getTtyCWD(this.tty).then(cwd => {
                         if (this.tty._cwd === cwd) return;
@@ -345,13 +429,16 @@ class Terminal {
                 }
             }, 1000);
 
-            this.tty = this.Pty.spawn(opts.shell || "bash", (opts.params.length > 0 ? opts.params : (process.platform === "win32" ? [] : ["--login"])), {
+            this.tty = this.Pty.spawn(opts.shell || "bash", (this._promptHook !== null) ? this._promptHook.args : (opts.params.length > 0 ? opts.params : (process.platform === "win32" ? [] : ["--login"])), {
                 name: opts.env.TERM || "xterm-256color",
                 cols: 80,
                 rows: 24,
                 cwd: opts.cwd || process.env.PWD,
-                env: opts.env || process.env
+                env: (this._promptHook !== null) ? this._promptHook.env : (opts.env || process.env)
             });
+            if (this._promptHook !== null) {
+                signale.info(`Folder tracking through the ${this._promptHook.kind} prompt on port ${this.port}`);
+            }
 
             this.tty.onExit(({exitCode, signal}) => {
                 this._closed = true;
@@ -421,6 +508,16 @@ class Terminal {
                 } else {
                     this._outputBuffer.push(data);
                 }
+                if (this._promptHook !== null) {
+                    let place = null;
+                    try {
+                        place = this._readMarks(data);
+                    } catch(err) {
+                        this._markTail = "";
+                        signale.error("Could not read the shell's folder report:", err);
+                    }
+                    if (place !== null) this._takePrompt(place);
+                }
             });
 
             this._ipcListener = (e, ...args) => {
@@ -429,11 +526,17 @@ class Terminal {
                         this.renderer = e.sender;
                         this._rendererId = e.sender.id;
                         this._watchSender(e.sender);
+                        if (this._promptHook !== null) {
+                            this._sendToRenderer("Shell hook", this._promptHook.kind, opts.cwd || process.env.PWD || "");
+                        }
                         if (!this._disableCWDtracking && this.tty._cwd) {
                             this._sendToRenderer("New cwd", this.tty._cwd);
                         }
                         if (this._disableCWDtracking) {
                             this._sendToRenderer("Fallback cwd", opts.cwd || process.env.PWD);
+                        }
+                        if (this._promptHook !== null && this._promptPlace !== null) {
+                            this._sendToRenderer("Prompt", this._promptPlace, this._promptHook.kind, this._atPrompt);
                         }
                         if (this._outputBuffer.length > 0) {
                             this._sendToRenderer("Output", this._outputBuffer.join(""));
@@ -444,11 +547,13 @@ class Terminal {
                     case "Data":
                         if (this.renderer !== null && e.sender.id === this._rendererId) {
                             this.tty.write(args[1]);
+                            this._takeInput(args[1]);
                         }
                         break;
                     case "Binary":
                         if (this.renderer !== null && e.sender.id === this._rendererId) {
                             this.tty.write(Buffer.from(args[1]));
+                            this._takeInput(null);
                         }
                         break;
                     case "Resize":
@@ -500,6 +605,45 @@ class Terminal {
         } else {
             throw "Unknown purpose";
         }
+    }
+
+    static isTerminalReply(data) {
+        return typeof data === "string" && /^(\x1b\[[IO]|\x1b\[[0-9;?>$]*[cnRty]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1bP[^\x1b]*\x1b\\)$/.test(data);
+    }
+
+    static isLineEnd(data) {
+        return typeof data === "string" && (data.endsWith("\r") || data === "\x03");
+    }
+
+    static isPromptPlace(text) {
+        return typeof text === "string" && text.length >= 3 && text.length <= 32767 && !/[\x00-\x1f\x7f]/.test(text) && /^([A-Za-z]:\\|\\\\[^\\])/.test(text);
+    }
+
+    static powershellHook(token) {
+        return [
+            "$global:VxPrompt=$function:prompt",
+            "if(-not $global:VxPrompt){$global:VxPrompt={'PS '+$ExecutionContext.SessionState.Path.CurrentLocation+'> '}}",
+            "function global:prompt{$vxText=& $global:VxPrompt;try{$vxPlace=$ExecutionContext.SessionState.Path.CurrentLocation;if($vxPlace.Provider.Name -eq 'FileSystem'){$Host.UI.Write([string][char]27+']6973;" + token + ";'+$vxPlace.ProviderPath+[string][char]7)}}catch{};$vxText}"
+        ].join(";");
+    }
+
+    static promptHook(shell, params, env, token) {
+        if (process.platform !== "win32") return null;
+        if (params && params.length > 0) return null;
+        if (typeof shell !== "string" || typeof token !== "string" || !/^[0-9a-f]{32}$/.test(token)) return null;
+        let name = require("path").win32.basename(shell).toLowerCase();
+        if (name === "powershell.exe" || name === "pwsh.exe") {
+            return {kind: "powershell", args: ["-NoExit", "-Command", Terminal.powershellHook(token)], env};
+        }
+        if (name === "cmd.exe") {
+            let next = Object.assign({}, env);
+            let key = Object.keys(next).find(item => item.toUpperCase() === "PROMPT");
+            let base = (key !== undefined && typeof next[key] === "string" && next[key] !== "") ? next[key] : "$P$G";
+            if (key !== undefined) delete next[key];
+            next.PROMPT = "$E]6973;" + token + ";$P$E\\" + base;
+            return {kind: "cmd", args: [], env: next};
+        }
+        return null;
     }
 }
 
