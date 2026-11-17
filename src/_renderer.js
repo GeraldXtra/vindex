@@ -642,7 +642,6 @@ window.focusShellTab = number => {
         showShellSize(term.term.cols, term.term.rows);
         showShellRenderer(term.renderer);
 
-        if (window.fsDisp) window.fsDisp.followTab();
         window.renderShellTabs();
     } else if (number > 0 && number <= 4 && window.term[number] !== null && typeof window.term[number] !== "object") {
         window.term[number] = null;
@@ -888,15 +887,6 @@ window.openSettings = async () => {
     });
 };
 
-window.writeFile = async (path) => {
-    let saved = await window.vindex.writeTextFile(path, document.getElementById("fileEdit").value);
-    if (saved === true) {
-        document.getElementById("fedit-status").innerHTML = "<i>File saved.</i>";
-    } else {
-        document.getElementById("fedit-status").innerHTML = "<i>Could not save the file.</i>";
-    }
-};
-
 window.writeSettingsFile = async () => {
     window.settings = {
         shell: document.getElementById("settingsEditor-shell").value,
@@ -1103,13 +1093,8 @@ window.useAppShortcut = action => {
             window.openShortcutsHelp();
             return true;
         case "FUZZY_SEARCH":
-            if (!window.fsDisp) return false;
-            window.activeFuzzyFinder = new FuzzyFinder();
-            return true;
         case "FS_LIST_VIEW":
-            if (!window.fsDisp) return false;
-            window.fsDisp.toggleListview();
-            return true;
+            return false;
         case "FS_DOTFILES":
             if (!window.explorer) return false;
             window.explorer.toggleDotfiles();

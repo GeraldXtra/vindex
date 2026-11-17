@@ -33,11 +33,9 @@ Vindex is based on [eDEX-UI](https://github.com/GitSquared/edex-ui), made by Gab
 
 The sound effects were composed by [IceWolf](https://soundcloud.com/iamicewolf) for eDEX-UI.
 
-The globe is [ENCOM Globe](https://github.com/arscan/encom-globe) by Rob "Arscan" Scanlon.
-
 The fonts are [Doto](https://fonts.google.com/specimen/Doto), [Barlow Semi Condensed](https://fonts.google.com/specimen/Barlow+Semi+Condensed) and [JetBrains Mono](https://www.jetbrains.com/lp/mono/), all under the SIL Open Font License 1.1.
 
-Thanks to the people behind [xterm.js](https://github.com/xtermjs/xterm.js), [systeminformation](https://github.com/sebhildebrandt/systeminformation) and [SmoothieCharts](https://github.com/joewalnes/smoothie).
+Thanks to the people behind [xterm.js](https://github.com/xtermjs/xterm.js) and [systeminformation](https://github.com/sebhildebrandt/systeminformation).
 
 ## License
 

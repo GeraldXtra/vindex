@@ -360,36 +360,6 @@ function unregisterShortcuts() {
     }
 }
 
-let dirWatcher = null;
-
-function closeWatcher(watcher) {
-    try {
-        watcher.close();
-    } catch(err) {
-        signale.error("Could not close a folder watcher:", err);
-    }
-}
-
-function closeDirWatcher() {
-    if (dirWatcher === null) return;
-    let watcher = dirWatcher;
-    dirWatcher = null;
-    closeWatcher(watcher);
-}
-
-function watchDir(dir) {
-    closeDirWatcher();
-    let watcher = fs.watch(dir, guardListener("Could not forward a folder change:", eventType => {
-        sendToWindow("fs-watch-event", eventType);
-    }));
-    watcher.on("error", guardListener("Could not handle a folder watcher error:", err => {
-        signale.error(`Stopped watching ${dir}:`, err);
-        if (dirWatcher === watcher) dirWatcher = null;
-        closeWatcher(watcher);
-    }));
-    dirWatcher = watcher;
-}
-
 const explorerLimit = 1000;
 const explorerLinkLimit = 5000;
 
@@ -593,9 +563,6 @@ handleWindowRequest("clipboard-write-text", args => args.length === 1 && typeof 
 }, false);
 bootEvent("SECURITY", "Clipboard writes limited to 10 MB");
 handleWindowRequest("screen-display-count", hasNoArgs, () => electron.screen.getAllDisplays().length, 0);
-onWindowMessage("shell-open-path", args => args.length === 1 && typeof args[0] === "string", (e, target) => {
-    openFile(target);
-});
 onWindowMessage("shell-open-config", args => args.length === 1 && typeof args[0] === "string" && Object.prototype.hasOwnProperty.call(configFiles, args[0]), (e, name) => {
     openFile(configFiles[name]);
 });
@@ -648,67 +615,6 @@ handleWindowRequest("boot-events-read", hasNoArgs, () => ({now: Math.round(proce
 handleWindowRequest("os-uptime", hasNoArgs, () => os.uptime(), 0);
 handleWindowRequest("os-memory", hasNoArgs, () => ({total: os.totalmem(), free: os.freemem()}), null);
 handleWindowRequest("os-username", hasNoArgs, async () => (await require("username")()) || null, null);
-handleWindowRequest("assets-file-icons", hasNoArgs, () => require("./assets/icons/file-icons.json"), null);
-handleWindowRequest("assets-globe-grid", hasNoArgs, () => require("./assets/misc/grid.json"), null);
-handleWindowRequest("fs-read-dir", args => args.length === 1 && isSafePath(args[0]), async (e, dir) => {
-    let names;
-    try {
-        names = await fs.promises.readdir(dir);
-    } catch(err) {
-        return null;
-    }
-    let entries = await Promise.all(names.map(async name => {
-        let entryPath = path.resolve(dir, name);
-        try {
-            let stat = await fs.promises.lstat(path.join(dir, name));
-            return {
-                name,
-                path: entryPath,
-                isDirectory: stat.isDirectory(),
-                isFile: stat.isFile(),
-                isSymbolicLink: stat.isSymbolicLink(),
-                size: stat.size,
-                mtime: stat.mtime.getTime()
-            };
-        } catch(err) {
-            return {
-                name,
-                path: entryPath,
-                lstatError: String((err && (err.code || err.message)) || err)
-            };
-        }
-    }));
-    return {
-        parent: path.resolve(dir, ".."),
-        entries
-    };
-}, null);
-handleWindowRequest("fs-exists", args => args.length === 1 && isSafePath(args[0]), (e, target) => fs.existsSync(target), false);
-handleWindowRequest("fs-read-text", args => args.length === 1 && isSafePath(args[0]), async (e, file) => {
-    try {
-        let stat = await fs.promises.stat(file);
-        if (stat.size > 10485760) return {error: "This file is over 10 MB, too large to open here."};
-        return {data: await fs.promises.readFile(file, {encoding: "utf-8"})};
-    } catch(err) {
-        return {error: String((err && err.message) || err)};
-    }
-}, {error: "Could not read the file."});
-handleWindowRequest("fs-write-text", args => args.length === 2 && isSafePath(args[0]) && typeof args[1] === "string", async (e, file, content) => {
-    await fs.promises.writeFile(file, content, "utf-8");
-    return true;
-}, false);
-handleWindowRequest("fs-file-type", args => args.length === 1 && typeof args[0] === "string" && args[0].length <= 4096, (e, name) => {
-    let mime = require("mime-types");
-    let parts = name.split(".");
-    let type = mime.lookup(parts[parts.length - 1]);
-    return {type, charset: mime.charset(type)};
-}, {type: false, charset: false});
-onWindowMessage("fs-watch-start", args => args.length === 1 && isSafePath(args[0]), (e, dir) => {
-    watchDir(dir);
-});
-onWindowMessage("fs-watch-stop", hasNoArgs, () => {
-    closeDirWatcher();
-});
 handleWindowRequest("explorer-list", args => args.length === 1 && isExplorerPath(args[0]), (e, dir) => listExplorerFolder(dir), {error: "UNREADABLE"});
 handleWindowRequest("net-places", args => args.length === 1 && Array.isArray(args[0]) && args[0].length <= 64 && args[0].every(ip => typeof ip === "string" && net.isIP(ip) !== 0), (e, ips) => lookupPlaces(ips), null);
 handleWindowRequest("net-home", hasNoArgs, () => homePlace(), null);
@@ -1019,15 +925,6 @@ function createWindow(settings) {
     win.on("leave-full-screen", () => {
         sendToWindow("window-leave-full-screen");
     });
-    win.webContents.on("did-start-navigation", guardListener("Could not handle a window navigation:", e => {
-        if (e.isMainFrame && !e.isSameDocument) closeDirWatcher();
-    }));
-    win.webContents.on("render-process-gone", guardListener("Could not handle the lost window process:", () => {
-        closeDirWatcher();
-    }));
-    win.on("closed", guardListener("Could not handle the closed window:", () => {
-        closeDirWatcher();
-    }));
 
     win.webContents.once("did-finish-load", () => {
         bootEvent("WINDOW", "Page loaded");

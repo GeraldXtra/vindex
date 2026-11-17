@@ -118,10 +118,6 @@ const vindex = Object.freeze({
     quitApp: () => {
         ipcRenderer.send("app-quit");
     },
-    openPath: target => {
-        requireValid(typeof target === "string", "Path must be a string");
-        ipcRenderer.send("shell-open-path", target);
-    },
     openSettingsFile: () => {
         ipcRenderer.send("shell-open-config", "settings.json");
     },
@@ -205,43 +201,6 @@ const vindex = Object.freeze({
     },
     getUsername: () => {
         return ipcRenderer.invoke("os-username");
-    },
-    getFileIcons: () => {
-        return ipcRenderer.invoke("assets-file-icons");
-    },
-    getGlobeGrid: () => {
-        return ipcRenderer.invoke("assets-globe-grid");
-    },
-    readDir: dir => {
-        requireValid(typeof dir === "string", "Folder path must be a string");
-        return ipcRenderer.invoke("fs-read-dir", dir);
-    },
-    pathExists: target => {
-        requireValid(typeof target === "string", "Path must be a string");
-        return ipcRenderer.invoke("fs-exists", target);
-    },
-    readTextFile: file => {
-        requireValid(typeof file === "string", "File path must be a string");
-        return ipcRenderer.invoke("fs-read-text", file);
-    },
-    writeTextFile: (file, content) => {
-        requireValid(typeof file === "string", "File path must be a string");
-        requireValid(typeof content === "string", "File content must be a string");
-        return ipcRenderer.invoke("fs-write-text", file, content);
-    },
-    getFileType: name => {
-        requireValid(typeof name === "string", "File name must be a string");
-        return ipcRenderer.invoke("fs-file-type", name);
-    },
-    watchDir: dir => {
-        requireValid(typeof dir === "string", "Folder path must be a string");
-        ipcRenderer.send("fs-watch-start", dir);
-    },
-    unwatchDir: () => {
-        ipcRenderer.send("fs-watch-stop");
-    },
-    onDirChange: callback => {
-        return listen("fs-watch-event", callback);
     },
     listFolder: dir => {
         requireValid(typeof dir === "string", "Folder path must be a string");
