@@ -45,6 +45,27 @@ onWindowMessage("log", args => args.length === 2 && logLevels.includes(args[0]) 
 });
 
 var win, tty, extraTtys;
+const terminals = new Set();
+let quitStarted = 0;
+let quitReady = false;
+
+function trackTerminal(term) {
+    terminals.add(term);
+    term.whenStopped.then(() => {
+        terminals.delete(term);
+    });
+}
+
+function waitForTerminals(list, limit) {
+    return new Promise(resolve => {
+        let timer = setTimeout(() => resolve(false), limit);
+        Promise.all(list.map(term => term.whenStopped)).then(() => {
+            clearTimeout(timer);
+            resolve(true);
+        });
+    });
+}
+
 const bootEvents = [];
 const bootStatuses = ["ok", "info", "warn", "fail"];
 let lastBootSeq = 0;
@@ -993,6 +1014,7 @@ app.on('ready', async () => {
         port: settings.port || 3000,
         isAllowedSender: isMainWindowPage
     });
+    trackTerminal(tty);
     if (tty.tty && tty.tty.pid) bootEvent("PTY", `Shell started · PID ${tty.tty.pid}`);
     signale.success(`Terminal back-end initialized!`);
     tty.onclosed = (code, signal) => {
@@ -1065,6 +1087,7 @@ app.on('ready', async () => {
                 signale.error(`Could not create TTY process on port ${port}:`, err);
                 return "ERROR: could not create tty";
             }
+            trackTerminal(term);
             signale.success(`New terminal back-end initialized at ${port}`);
             term.onclosed = (code, signal) => {
                 term.ondisconnected = () => {};
@@ -1126,16 +1149,37 @@ app.on('window-all-closed', () => {
     app.quit();
 });
 
-app.on('before-quit', () => {
-    tty.close();
-    Object.keys(extraTtys).forEach(key => {
-        if (extraTtys[key] !== null) {
-            extraTtys[key].close();
+app.on('before-quit', e => {
+    if (quitReady) return;
+    e.preventDefault();
+    if (quitStarted !== 0) return;
+    quitStarted = Date.now();
+    signale.complete("Shutting down...");
+    let closing = Array.from(terminals);
+    signale.pending(`Closing ${closing.length} terminal${(closing.length === 1) ? "" : "s"}...`);
+    closing.forEach(term => {
+        try {
+            term.close();
+        } catch(err) {
+            signale.error("Could not close a terminal:", err);
         }
     });
-    signale.complete("Shutting down...");
+    waitForTerminals(closing, 3000).then(closed => {
+        let took = Date.now() - quitStarted;
+        if (closed) {
+            signale.complete(`Terminals closed after ${took} ms`);
+        } else {
+            signale.warn(`Terminals still open after ${took} ms, quitting anyway`);
+        }
+        quitReady = true;
+        app.quit();
+    });
 });
 
 app.on('will-quit', () => {
     unregisterShortcuts();
+});
+
+app.on('quit', () => {
+    signale.complete(`Quitting ${(quitStarted === 0) ? 0 : Date.now() - quitStarted} ms after the shutdown began`);
 });

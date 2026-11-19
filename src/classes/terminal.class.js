@@ -306,6 +306,7 @@ class Terminal {
             this.port = opts.port || 3000;
 
             this._closed = false;
+            this._killed = false;
             this.onclosed = () => {};
             this.onopened = () => {};
             this.onresize = () => {};
@@ -470,6 +471,13 @@ class Terminal {
                 signale.info(`Folder tracking through the ${this._promptHook.kind} prompt on port ${this.port}`);
             }
 
+            this.whenStopped = Promise.all([
+                new Promise(resolve => {
+                    this.tty.onExit(() => resolve());
+                }),
+                Terminal.outputThreadStopped(this.tty)
+            ]);
+
             this.tty.onExit(({exitCode, signal}) => {
                 this._closed = true;
                 this._sendToRenderer("Exit");
@@ -629,7 +637,10 @@ class Terminal {
 
             this.close = () => {
                 this._detach();
-                this.tty.kill();
+                if (!this._killed) {
+                    this._killed = true;
+                    this.tty.kill();
+                }
                 this._closed = true;
             };
         } else {
@@ -648,6 +659,16 @@ class Terminal {
 
     static isSize(value, max) {
         return typeof value === "string" && /^[0-9]{1,4}$/.test(value) && Number(value) >= 1 && Number(value) <= max;
+    }
+
+    static outputThreadStopped(pty) {
+        let agent = (pty && pty._agent) ? pty._agent : null;
+        let connection = (agent && agent._conoutSocketWorker) ? agent._conoutSocketWorker : null;
+        let worker = (connection && connection._worker) ? connection._worker : null;
+        if (worker === null || typeof worker.once !== "function") return Promise.resolve();
+        return new Promise(resolve => {
+            worker.once("exit", () => resolve());
+        });
     }
 
     static isLineEnd(data) {
