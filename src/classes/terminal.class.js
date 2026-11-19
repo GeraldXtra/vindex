@@ -40,8 +40,8 @@ class Terminal {
             };
 
             this._sendSizeToServer = () => {
-                let cols = this.term.cols.toString();
-                let rows = this.term.rows.toString();
+                let cols = Math.min(this.term.cols, 4000).toString();
+                let rows = Math.min(this.term.rows, 2000).toString();
                 while (cols.length < 3) {
                     cols = "0"+cols;
                 }
@@ -250,6 +250,36 @@ class Terminal {
                 this._noteInput(cmd+"\r");
             };
 
+            this.pasteText = text => {
+                let clean = Terminal.cleanPaste(text);
+                if (clean === "") return;
+                let lines = clean.split("\n");
+                let breaks = lines.length - 1;
+                if (breaks === 0) {
+                    this.term.paste(clean);
+                    return;
+                }
+                let preview = lines.slice(0, 8).map(line => (line.length > 100) ? line.slice(0, 100) + "…" : line);
+                if (lines.length > 8) preview.push("…");
+                let done = false;
+                let dialog = new Modal({
+                    type: "custom",
+                    title: "Paste",
+                    html: `<h5>Pasting this runs ${breaks} ${(breaks === 1) ? "line" : "lines"} as soon as it lands.</h5><pre class="vx-paste-preview">${window._escapeHtml(preview.join("\n"))}</pre>`,
+                    buttons: [
+                        {label: "Paste", action: () => {
+                            if (done) return;
+                            done = true;
+                            this.term.paste(clean);
+                            dialog.close();
+                        }}
+                    ]
+                }, () => {
+                    done = true;
+                    this.term.focus();
+                });
+            };
+
             this.clipboard = {
                 copy: () => {
                     if (!this.term.hasSelection()) return false;
@@ -258,7 +288,7 @@ class Terminal {
                     this.clipboard.didCopy = true;
                 },
                 paste: () => {
-                    window.vindex.readClipboardText().then(text => this.write(text));
+                    window.vindex.readClipboardText().then(text => this.pasteText(text));
                     this.clipboard.didCopy = false;
                 },
                 didCopy: false
@@ -579,7 +609,7 @@ class Terminal {
                     case "Binary":
                         return args.length === 2 && args[1] instanceof Uint8Array;
                     case "Resize":
-                        return args.length === 3 && typeof args[1] === "string" && typeof args[2] === "string" && /^[0-9]+$/.test(args[1]) && /^[0-9]+$/.test(args[2]);
+                        return args.length === 3 && Terminal.isSize(args[1], 4000) && Terminal.isSize(args[2], 2000);
                     default:
                         return false;
                 }
@@ -609,6 +639,15 @@ class Terminal {
 
     static isTerminalReply(data) {
         return typeof data === "string" && /^(\x1b\[[IO]|\x1b\[[0-9;?>$]*[cnRty]|\x1b\][^\x07\x1b]*(\x07|\x1b\\)|\x1bP[^\x1b]*\x1b\\)$/.test(data);
+    }
+
+    static cleanPaste(text) {
+        if (typeof text !== "string") return "";
+        return text.replace(/\r\n?/g, "\n").replace(/[\x00-\x08\x0b-\x1f\x7f-\x9f]/g, "");
+    }
+
+    static isSize(value, max) {
+        return typeof value === "string" && /^[0-9]{1,4}$/.test(value) && Number(value) >= 1 && Number(value) <= max;
     }
 
     static isLineEnd(data) {

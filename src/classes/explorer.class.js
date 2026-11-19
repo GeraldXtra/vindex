@@ -46,6 +46,10 @@ class Explorer {
         return node;
     }
 
+    static shown(text) {
+        return String(text).replace(/[\u061c\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, "\ufffd");
+    }
+
     static icon(className, size, box, d) {
         let svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
         svg.setAttribute("class", className);
@@ -278,7 +282,7 @@ class Explorer {
         this.crumbList.forEach((crumb, i) => {
             crumb.here = i === this.crumbList.length - 1;
             if (i > 0) this.crumbs.appendChild(Explorer.element("span", "vx-crumb-sep", "›"));
-            let button = Explorer.element("button", "vx-crumb" + (crumb.here ? " vx-crumb-here" : ""), crumb.name);
+            let button = Explorer.element("button", "vx-crumb" + (crumb.here ? " vx-crumb-here" : ""), Explorer.shown(crumb.name));
             button.type = "button";
             button.tabIndex = -1;
             button.dataset.index = String(i);
@@ -315,12 +319,12 @@ class Explorer {
             button.tabIndex = -1;
             button.dataset.index = String(i);
             button.style.paddingLeft = (8 + row.level * 12) + "px";
-            button.title = row.path;
+            button.title = Explorer.shown(row.path);
             let chevron = Explorer.element("span", "vx-file-chev");
             if (row.dir) chevron.appendChild(Explorer.icon("vx-file-chev-icon", 10, 10, row.open ? "M2 3.5l3 3 3-3" : "M3.5 2l3 3-3 3"));
             button.appendChild(chevron);
             button.appendChild(Explorer.icon("vx-file-icon", 13, 14, row.dir ? "M1.5 3.5h4l1.5 1.5h5.5v6.5h-11z" : "M3.5 1.5h4.5l2.5 2.5v8.5h-7zM8 1.5v2.5h2.5"));
-            button.appendChild(Explorer.element("span", "vx-file-name", row.name));
+            button.appendChild(Explorer.element("span", "vx-file-name", Explorer.shown(row.name)));
             button.appendChild(Explorer.element("span", "vx-file-type", row.tag));
             fragment.appendChild(button);
         });

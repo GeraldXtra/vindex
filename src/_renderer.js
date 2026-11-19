@@ -13,6 +13,9 @@ window._escapeHtml = text => {
     };
     return text.replace(/[&<>"']/g, m => {return map[m];});
 };
+function escapeHtmlText(value) {
+    return window._escapeHtml(String(value));
+}
 window._encodePathURI = uri => {
     return encodeURI(uri).replace(/#/g, "%23");
 };
@@ -122,8 +125,8 @@ function initGraphicalErrorHandling() {
     window.onerror = (msg, path, line, col, error) => {
         let errorModal = showModal({
             type: "error",
-            title: error,
-            message: `${msg}<br/>        at ${path}  ${line}:${col}`
+            title: error ? escapeHtmlText(error) : "error",
+            message: `${escapeHtmlText(msg)}<br/>        at ${escapeHtmlText(path)}  ${escapeHtmlText(line)}:${escapeHtmlText(col)}`
         });
         if (errorModal !== null) window.vindexErrorModals.push(errorModal);
 
@@ -202,7 +205,7 @@ function twoDigits(value) {
 function showShellCwd(cwd) {
     let label = document.getElementById("vx-term-cwd");
     if (typeof cwd === "string" && cwd !== "" && !cwd.startsWith("FALLBACK |-- ")) {
-        label.textContent = cwd;
+        label.textContent = Explorer.shown(cwd);
         label.hidden = false;
     } else {
         label.textContent = "";
@@ -664,16 +667,16 @@ window.openSettings = async () => {
     if (document.getElementById("settingsEditor")) return;
 
     // Build lists of available keyboards, themes, monitors
-    let keyboards, themes, monitors, ifaces;
+    let keyboards = "", themes = "", monitors = "", ifaces = "";
     let keyboardLayouts = await window.vindex.listKeyboardLayouts();
     keyboardLayouts.forEach(kb => {
         if (kb === window.settings.keyboard) return;
-        keyboards += `<option>${kb}</option>`;
+        keyboards += `<option>${escapeHtmlText(kb)}</option>`;
     });
     let themeNames = await window.vindex.listThemes();
     themeNames.forEach(th => {
         if (th === window.settings.theme) return;
-        themes += `<option>${th}</option>`;
+        themes += `<option>${escapeHtmlText(th)}</option>`;
     });
     let displayCount = await window.vindex.getDisplayCount();
     for (let i = 0; i < displayCount; i++) {
@@ -682,7 +685,7 @@ window.openSettings = async () => {
     let nets = await window.si.networkInterfaces(false);
     if (!Array.isArray(nets)) nets = [];
     nets.forEach(net => {
-        if (net.iface !== (window.settings.iface || "")) ifaces += `<option>${net.iface}</option>`;
+        if (net.iface !== (window.settings.iface || "")) ifaces += `<option>${escapeHtmlText(net.iface)}</option>`;
     });
 
     // Unlink the tactile keyboard from the terminal emulator to allow filling in the settings fields
@@ -690,7 +693,7 @@ window.openSettings = async () => {
 
     new Modal({
         type: "custom",
-        title: `Settings <i>(v${window.vindex.appVersion})</i>`,
+        title: `Settings <i>(v${escapeHtmlText(window.vindex.appVersion)})</i>`,
         html: `<table id="settingsEditor">
                     <tr>
                         <th>Key</th>
@@ -700,33 +703,33 @@ window.openSettings = async () => {
                     <tr>
                         <td>shell</td>
                         <td>The program to run as a terminal emulator</td>
-                        <td><input type="text" id="settingsEditor-shell" value="${window.settings.shell}"></td>
+                        <td><input type="text" id="settingsEditor-shell" value="${escapeHtmlText(window.settings.shell)}"></td>
                     </tr>
                     <tr>
                         <td>shellArgs</td>
                         <td>Arguments to pass to the shell</td>
-                        <td><input type="text" id="settingsEditor-shellArgs" value="${window.settings.shellArgs || ''}"></td>
+                        <td><input type="text" id="settingsEditor-shellArgs" value="${escapeHtmlText(window.settings.shellArgs || '')}"></td>
                     </tr>
                     <tr>
                         <td>cwd</td>
                         <td>Working Directory to start in</td>
-                        <td><input type="text" id="settingsEditor-cwd" value="${window.settings.cwd}"></td>
+                        <td><input type="text" id="settingsEditor-cwd" value="${escapeHtmlText(window.settings.cwd)}"></td>
                     </tr>
                     <tr>
                         <td>env</td>
                         <td>Custom shell environment override</td>
-                        <td><input type="text" id="settingsEditor-env" value="${window.settings.env}"></td>
+                        <td><input type="text" id="settingsEditor-env" value="${escapeHtmlText(window.settings.env)}"></td>
                     </tr>
                     <tr>
                         <td>username</td>
                         <td>Custom username to display at boot</td>
-                        <td><input type="text" id="settingsEditor-username" value="${window.settings.username}"></td>
+                        <td><input type="text" id="settingsEditor-username" value="${escapeHtmlText(window.settings.username)}"></td>
                     </tr>
                     <tr>
                         <td>keyboard</td>
                         <td>On-screen keyboard layout code</td>
                         <td><select id="settingsEditor-keyboard">
-                            <option>${window.settings.keyboard}</option>
+                            <option>${escapeHtmlText(window.settings.keyboard)}</option>
                             ${keyboards}
                         </select></td>
                     </tr>
@@ -734,45 +737,45 @@ window.openSettings = async () => {
                         <td>theme</td>
                         <td>Name of the theme to load</td>
                         <td><select id="settingsEditor-theme">
-                            <option>${window.settings.theme}</option>
+                            <option>${escapeHtmlText(window.settings.theme)}</option>
                             ${themes}
                         </select></td>
                     </tr>
                     <tr>
                         <td>termFontSize</td>
                         <td>Size of the terminal text in pixels</td>
-                        <td><input type="number" id="settingsEditor-termFontSize" value="${window.settings.termFontSize}"></td>
+                        <td><input type="number" id="settingsEditor-termFontSize" value="${escapeHtmlText(window.settings.termFontSize)}"></td>
                     </tr>
                     <tr>
                         <td>audio</td>
                         <td>Activate audio sound effects</td>
                         <td><select id="settingsEditor-audio">
-                            <option>${window.settings.audio}</option>
+                            <option>${escapeHtmlText(window.settings.audio)}</option>
                             <option>${!window.settings.audio}</option>
                         </select></td>
                     </tr>
                     <tr>
                         <td>audioVolume</td>
                         <td>Set default volume for sound effects (0.0 - 1.0)</td>
-                        <td><input type="number" id="settingsEditor-audioVolume" value="${window.settings.audioVolume || '1.0'}"></td>
+                        <td><input type="number" id="settingsEditor-audioVolume" value="${escapeHtmlText(window.settings.audioVolume || '1.0')}"></td>
                     </tr>
                     <tr>
                         <td>disableFeedbackAudio</td>
                         <td>Disable recurring feedback sound FX (input/output, mostly)</td>
                         <td><select id="settingsEditor-disableFeedbackAudio">
-                            <option>${window.settings.disableFeedbackAudio}</option>
+                            <option>${escapeHtmlText(window.settings.disableFeedbackAudio)}</option>
                             <option>${!window.settings.disableFeedbackAudio}</option>
                         </select></td>
                     </tr>
                     <tr>
                         <td>port</td>
                         <td>Local port to use for UI-shell connection</td>
-                        <td><input type="number" id="settingsEditor-port" value="${window.settings.port}"></td>
+                        <td><input type="number" id="settingsEditor-port" value="${escapeHtmlText(window.settings.port)}"></td>
                     </tr>
                     <tr>
                         <td>pingAddr</td>
                         <td>IPv4 address to test Internet connectivity</td>
-                        <td><input type="text" id="settingsEditor-pingAddr" value="${window.settings.pingAddr || "1.1.1.1"}"></td>
+                        <td><input type="text" id="settingsEditor-pingAddr" value="${escapeHtmlText(window.settings.pingAddr || "1.1.1.1")}"></td>
                     </tr>
                     <tr>
                         <td>clockHours</td>
@@ -785,7 +788,7 @@ window.openSettings = async () => {
                         <td>monitor</td>
                         <td>Which monitor to spawn the UI in (defaults to primary display)</td>
                         <td><select id="settingsEditor-monitor">
-                            ${(typeof window.settings.monitor !== "undefined") ? "<option>"+window.settings.monitor+"</option>" : ""}
+                            ${(typeof window.settings.monitor !== "undefined") ? "<option>"+escapeHtmlText(window.settings.monitor)+"</option>" : ""}
                             ${monitors}
                         </select></td>
                     </tr>
@@ -793,7 +796,7 @@ window.openSettings = async () => {
                         <td>nointro</td>
                         <td>Skip the intro boot log and logo${(window.settings.nointroOverride) ? " (Currently overridden by CLI flag)" : ""}</td>
                         <td><select id="settingsEditor-nointro">
-                            <option>${window.settings.nointro}</option>
+                            <option>${escapeHtmlText(window.settings.nointro)}</option>
                             <option>${!window.settings.nointro}</option>
                         </select></td>
                     </tr>
@@ -801,7 +804,7 @@ window.openSettings = async () => {
                         <td>nocursor</td>
                         <td>Hide the mouse cursor${(window.settings.nocursorOverride) ? " (Currently overridden by CLI flag)" : ""}</td>
                         <td><select id="settingsEditor-nocursor">
-                            <option>${window.settings.nocursor}</option>
+                            <option>${escapeHtmlText(window.settings.nocursor)}</option>
                             <option>${!window.settings.nocursor}</option>
                         </select></td>
                     </tr>
@@ -809,7 +812,7 @@ window.openSettings = async () => {
                         <td>iface</td>
                         <td>Override the interface used for network monitoring</td>
                         <td><select id="settingsEditor-iface">
-                            <option>${(window.settings.iface || "")}</option>
+                            <option>${escapeHtmlText(window.settings.iface || "")}</option>
                             ${ifaces}
                         </select></td>
                     </tr>
@@ -817,7 +820,7 @@ window.openSettings = async () => {
                         <td>allowWindowed</td>
                         <td>Allow using F11 key to set the UI in windowed mode</td>
                         <td><select id="settingsEditor-allowWindowed">
-                            <option>${window.settings.allowWindowed}</option>
+                            <option>${escapeHtmlText(window.settings.allowWindowed)}</option>
                             <option>${!window.settings.allowWindowed}</option>
                         </select></td>
                     </tr>
@@ -833,7 +836,7 @@ window.openSettings = async () => {
                         <td>excludeThreadsFromToplist</td>
                         <td>Display threads in the top processes list</td>
                         <td><select id="settingsEditor-excludeThreadsFromToplist">
-                            <option>${window.settings.excludeThreadsFromToplist}</option>
+                            <option>${escapeHtmlText(window.settings.excludeThreadsFromToplist)}</option>
                             <option>${!window.settings.excludeThreadsFromToplist}</option>
                         </select></td>
                     </tr>
@@ -841,7 +844,7 @@ window.openSettings = async () => {
                         <td>hideDotfiles</td>
                         <td>Hide files and directories starting with a dot in file display</td>
                         <td><select id="settingsEditor-hideDotfiles">
-                            <option>${window.settings.hideDotfiles}</option>
+                            <option>${escapeHtmlText(window.settings.hideDotfiles)}</option>
                             <option>${!window.settings.hideDotfiles}</option>
                         </select></td>
                     </tr>
@@ -849,7 +852,7 @@ window.openSettings = async () => {
                         <td>fsListView</td>
                         <td>Show files in a more detailed list instead of an icon grid</td>
                         <td><select id="settingsEditor-fsListView">
-                            <option>${window.settings.fsListView}</option>
+                            <option>${escapeHtmlText(window.settings.fsListView)}</option>
                             <option>${!window.settings.fsListView}</option>
                         </select></td>
                     </tr>
@@ -857,7 +860,7 @@ window.openSettings = async () => {
                         <td>experimentalGlobeFeatures</td>
                         <td>Toggle experimental features for the network globe</td>
                         <td><select id="settingsEditor-experimentalGlobeFeatures">
-                            <option>${window.settings.experimentalGlobeFeatures}</option>
+                            <option>${escapeHtmlText(window.settings.experimentalGlobeFeatures)}</option>
                             <option>${!window.settings.experimentalGlobeFeatures}</option>
                         </select></td>
                     </tr>
@@ -865,7 +868,7 @@ window.openSettings = async () => {
                         <td>experimentalFeatures</td>
                         <td>Toggle Chrome's experimental web features (DANGEROUS)</td>
                         <td><select id="settingsEditor-experimentalFeatures">
-                            <option>${window.settings.experimentalFeatures}</option>
+                            <option>${escapeHtmlText(window.settings.experimentalFeatures)}</option>
                             <option>${!window.settings.experimentalFeatures}</option>
                         </select></td>
                     </tr>
@@ -873,10 +876,20 @@ window.openSettings = async () => {
                 <h6 id="settingsEditorStatus">Loaded values from memory</h6>
                 <br>`,
         buttons: [
-            {label: "Open in External Editor", action:`window.vindex.openSettingsFile();window.vindex.minimize();`},
-            {label: "Save to Disk", action: "window.writeSettingsFile()"},
-            {label: "Reload UI", action: "window.location.reload(true);"},
-            {label: "Restart Vindex", action: "window.vindex.relaunchApp();window.vindex.quitApp();"}
+            {label: "Open in External Editor", action: () => {
+                window.vindex.openSettingsFile();
+                window.vindex.minimize();
+            }},
+            {label: "Save to Disk", action: () => {
+                window.writeSettingsFile();
+            }},
+            {label: "Reload UI", action: () => {
+                window.location.reload(true);
+            }},
+            {label: "Restart Vindex", action: () => {
+                window.vindex.relaunchApp();
+                window.vindex.quitApp();
+            }}
         ]
     }, () => {
         // Link the keyboard back to the terminal
@@ -963,23 +976,23 @@ window.openShortcutsHelp = () => {
     };
 
     let appList = "";
-    window.shortcuts.filter(e => e.type === "app").forEach(cut => {
-        let action = (cut.action.startsWith("TAB_")) ? "TAB_X" : cut.action;
+    window.shortcuts.filter(e => e && e.type === "app").forEach(cut => {
+        let action = (String(cut.action).startsWith("TAB_")) ? "TAB_X" : String(cut.action);
 
         appList += `<tr>
                         <td>${(cut.enabled) ? 'YES' : 'NO'}</td>
-                        <td><input disabled type="text" maxlength=25 value="${cut.trigger}"></td>
-                        <td>${shortcutsDefinition[action]}</td>
+                        <td><input disabled type="text" maxlength=25 value="${escapeHtmlText(cut.trigger)}"></td>
+                        <td>${Object.prototype.hasOwnProperty.call(shortcutsDefinition, action) ? shortcutsDefinition[action] : escapeHtmlText(action)}</td>
                     </tr>`;
     });
 
     let customList = "";
-    window.shortcuts.filter(e => e.type === "shell").forEach(cut => {
+    window.shortcuts.filter(e => e && e.type === "shell").forEach(cut => {
         customList += `<tr>
                             <td>${(cut.enabled) ? 'YES' : 'NO'}</td>
-                            <td><input disabled type="text" maxlength=25 value="${cut.trigger}"></td>
+                            <td><input disabled type="text" maxlength=25 value="${escapeHtmlText(cut.trigger)}"></td>
                             <td>
-                                <input disabled type="text" placeholder="Run terminal command..." value="${cut.action}">
+                                <input disabled type="text" placeholder="Run terminal command..." value="${escapeHtmlText(cut.action)}">
                                 <input disabled type="checkbox" name="shortcutsHelpNew_Enter" ${(cut.linebreak) ? 'checked' : ''}>
                                 <label for="shortcutsHelpNew_Enter">Enter</label>
                             </td>
@@ -989,7 +1002,7 @@ window.openShortcutsHelp = () => {
     window.keyboard.detach();
     new Modal({
         type: "custom",
-        title: `Available Keyboard Shortcuts <i>(v${window.vindex.appVersion})</i>`,
+        title: `Available Keyboard Shortcuts <i>(v${escapeHtmlText(window.vindex.appVersion)})</i>`,
         html: `<h5>Using either the on-screen or a physical keyboard, you can use the following shortcuts:</h5>
                 <details open id="shortcutsHelpAccordeon1">
                     <summary>Emulator shortcuts</summary>
@@ -1016,8 +1029,13 @@ window.openShortcutsHelp = () => {
                 </details>
                 <br>`,
         buttons: [
-            {label: "Open Shortcuts File", action:`window.vindex.openShortcutsFile();window.vindex.minimize();`},
-            {label: "Reload UI", action: "window.location.reload(true);"},
+            {label: "Open Shortcuts File", action: () => {
+                window.vindex.openShortcutsFile();
+                window.vindex.minimize();
+            }},
+            {label: "Reload UI", action: () => {
+                window.location.reload(true);
+            }},
         ]
     }, () => {
         window.keyboard.attach();

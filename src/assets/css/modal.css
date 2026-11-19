@@ -249,3 +249,17 @@ details#shortcutsHelpAccordeon2 table td:nth-child(3) input[type="checkbox"] {
     max-height: 50vh;
     outline: none !important;
 }
+
+div.modal_popup > pre.vx-paste-preview {
+    max-width: 70vw;
+    max-height: 30vh;
+    overflow: auto;
+    margin: 0vh;
+    margin-bottom: 2vh;
+    padding: 1vh;
+    border: 0.15vh solid rgba(var(--color_r), var(--color_g), var(--color_b), 0.5);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.6vh;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+}

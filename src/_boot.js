@@ -41,7 +41,7 @@ const Terminal = require("./classes/terminal.class.js").Terminal;
 
 const logLevels = ["error", "debug", "note", "info"];
 onWindowMessage("log", args => args.length === 2 && logLevels.includes(args[0]) && typeof args[1] === "string", (e, type, content) => {
-    signale[type](content);
+    signale[type](content.replace(/[\u0000-\u001f\u007f-\u009f\u2028\u2029]/g, " ").slice(0, 4000));
 });
 
 var win, tty, extraTtys;
@@ -184,14 +184,6 @@ function isWindowSize(value) {
     return Number.isSafeInteger(value) && value > 0;
 }
 
-function isHttpsURL(link) {
-    try {
-        return typeof link === "string" && new URL(link).protocol === "https:";
-    } catch(err) {
-        return false;
-    }
-}
-
 function isPlainObject(value) {
     return value !== null && typeof value === "object" && Object.getPrototypeOf(value) === Object.prototype;
 }
@@ -202,10 +194,6 @@ function isSafePath(value) {
 
 function isSafeFileName(value) {
     return typeof value === "string" && value.length >= 1 && value.length <= 255 && !value.includes("\0") && value !== "." && value !== ".." && path.basename(value) === value;
-}
-
-function isPingTarget(value) {
-    return typeof value === "string" && (net.isIPv4(value) || /^[A-Za-z0-9.-]{1,253}$/.test(value));
 }
 
 const themeColorKeys = ["bg", "grid", "panel", "raised", "line", "strong", "text", "text2", "text3", "accent", "ink", "green", "red"];
@@ -518,6 +506,8 @@ function homePlace() {
     return null;
 }
 
+let latencyTarget = null;
+
 function ping(target, localAddress) {
     return new Promise(resolve => {
         let socket = new net.Socket();
@@ -618,7 +608,7 @@ handleWindowRequest("os-username", hasNoArgs, async () => (await require("userna
 handleWindowRequest("explorer-list", args => args.length === 1 && isExplorerPath(args[0]), (e, dir) => listExplorerFolder(dir), {error: "UNREADABLE"});
 handleWindowRequest("net-places", args => args.length === 1 && Array.isArray(args[0]) && args[0].length <= 64 && args[0].every(ip => typeof ip === "string" && net.isIP(ip) !== 0), (e, ips) => lookupPlaces(ips), null);
 handleWindowRequest("net-home", hasNoArgs, () => homePlace(), null);
-handleWindowRequest("netstat-ping", args => args.length === 2 && isPingTarget(args[0]) && typeof args[1] === "string" && net.isIPv4(args[1]), (e, target, localAddress) => ping(target, localAddress), null);
+handleWindowRequest("netstat-ping", args => args.length === 2 && latencyTarget !== null && args[0] === latencyTarget && net.isIPv4(args[0]) && typeof args[1] === "string" && net.isIPv4(args[1]), (e, target, localAddress) => ping(target, localAddress), null);
 
 // Unset proxy env variables to avoid connection problems on the internal websockets
 // See #222
@@ -945,10 +935,35 @@ function createWindow(settings) {
     signale.watch("Waiting for frontend connection...");
 }
 
+function lockDownSession() {
+    try {
+        let ses = electron.session.defaultSession;
+        ses.setPermissionRequestHandler((contents, permission, callback) => {
+            signale.warn(`Denied a ${permission} permission request from the window`);
+            callback(false);
+        });
+        ses.setPermissionCheckHandler(() => false);
+        ses.setDevicePermissionHandler(() => false);
+        bootEvent("SECURITY", "Device permissions denied");
+    } catch(err) {
+        signale.error("Could not set the permission handlers:", err);
+    }
+    if (process.platform !== "darwin") {
+        try {
+            electron.Menu.setApplicationMenu(null);
+        } catch(err) {
+            signale.error("Could not remove the default menu:", err);
+        }
+    }
+}
+
 app.on('ready', async () => {
+    lockDownSession();
     signale.pending(`Loading settings file...`);
     let settings = require(settingsFile);
     bootEvent("CONFIG", "settings.json loaded");
+    let pingSetting = (typeof settings.pingAddr === "string") ? settings.pingAddr.trim() : "";
+    latencyTarget = (settings.latencyCheck === true) ? ((pingSetting !== "") ? pingSetting : "1.1.1.1") : null;
     signale.pending(`Resolving shell path...`);
     settings.shell = await which(settings.shell).catch(e => { throw(e) });
     signale.info(`Shell found at ${settings.shell}`);
@@ -1089,18 +1104,8 @@ app.on('ready', async () => {
 let reportedContentsRules = false;
 app.on('web-contents-created', (e, contents) => {
     // Prevent creating more than one window
-    contents.setWindowOpenHandler(details => {
-        try {
-            if (isHttpsURL(details.url)) {
-                shell.openExternal(details.url).catch(err => {
-                    signale.error("Could not open an external link:", err);
-                });
-            } else {
-                signale.warn("Blocked opening a link that is not https");
-            }
-        } catch(err) {
-            signale.error("Could not handle a new window request:", err);
-        }
+    contents.setWindowOpenHandler(() => {
+        signale.warn("Blocked opening a link from the window");
         return {action: "deny"};
     });
 
@@ -1112,7 +1117,7 @@ app.on('web-contents-created', (e, contents) => {
     if (!reportedContentsRules) {
         reportedContentsRules = true;
         bootEvent("SECURITY", "New windows blocked · navigation locked");
-        bootEvent("SECURITY", "Only https links open in your browser");
+        bootEvent("SECURITY", "Links from the window never open");
     }
 });
 

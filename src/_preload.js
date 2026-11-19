@@ -17,8 +17,8 @@ function requireValid(condition, message) {
     if (!condition) throw new TypeError(message);
 }
 
-function isDigits(value) {
-    return typeof value === "string" && /^[0-9]+$/.test(value);
+function isTerminalSize(value, max) {
+    return typeof value === "string" && /^[0-9]{1,4}$/.test(value) && Number(value) >= 1 && Number(value) <= max;
 }
 
 function isWindowSize(value) {
@@ -93,7 +93,7 @@ const vindex = Object.freeze({
     },
     terminalResize: (port, cols, rows) => {
         let channel = terminalChannel(port);
-        requireValid(isDigits(cols) && isDigits(rows), "Terminal size must be made of digits");
+        requireValid(isTerminalSize(cols, 4000) && isTerminalSize(rows, 2000), "Terminal size must be 1 to 4000 columns and 1 to 2000 rows");
         ipcRenderer.send(channel, "Resize", cols, rows);
     },
     onTerminalMessage: (port, callback) => {
